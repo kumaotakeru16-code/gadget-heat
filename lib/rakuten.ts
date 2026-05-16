@@ -63,9 +63,18 @@ export interface RakutenSearchMeta {
   pageCount: number;
 }
 
+export interface ExcludedItem {
+  name: string;
+  reason: string;
+  rawReviewCount: number;
+  rating: number;
+  price: number;
+}
+
 export interface RakutenSearchResult {
   items: RakutenProduct[];
   meta: RakutenSearchMeta;
+  excludedItems: ExcludedItem[];
 }
 
 // ─── Search params ────────────────────────────────────────────────────────────
@@ -78,6 +87,55 @@ export interface RakutenSearchParams {
   // Optional categorization hints — used when normalizing
   market?: string;
   cat?: string;
+  // When true, keeps items with reviewCount < 3 or rating = 0 (default: false)
+  includeLowSignal?: boolean;
+}
+
+// ─── Name normalizer ──────────────────────────────────────────────────────────
+
+const PROMO_PATTERNS: RegExp[] = [
+  /最大\d+[%％]OFF/gi,
+  /\d+[%％]OFF/gi,
+  /ポイント\d+倍/g,
+  /送料無料/g,
+  /即納/g,
+  /新品/g,
+  /国内正規品/g,
+  /クーポン/g,
+  /セール/g,
+  /楽天ランキング/g,
+  /iphone/gi,
+  /youtube/gi,
+  /vlog/gi,
+];
+
+function normalizeName(raw: string): string {
+  let name = raw;
+
+  // Bracketed blocks【...】are almost always promotional — remove entirely
+  name = name.replace(/【[^】]*】/g, " ");
+  name = name.replace(/\[[^\]]*\]/g, " ");
+  name = name.replace(/（[^）]*）/g, " ");
+  name = name.replace(/\([^)]*\)/g, " ");
+
+  for (const re of PROMO_PATTERNS) {
+    name = name.replace(re, " ");
+  }
+
+  // Remove decoration characters
+  name = name.replace(/[★☆◆◇●○■□▶▼◎※→←↑↓†‡]/g, " ");
+  name = name.replace(/[/／｜・,，、。！!？?]/g, " ");
+
+  name = name.replace(/\s+/g, " ").trim();
+
+  // Truncate to 40 chars, prefer a word boundary
+  if (name.length > 40) {
+    const cut = name.slice(0, 40);
+    const lastSpace = cut.lastIndexOf(" ");
+    name = lastSpace > 20 ? cut.slice(0, lastSpace) : cut;
+  }
+
+  return name || raw.slice(0, 40).trim();
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -120,6 +178,46 @@ function extractBrand(shopName: string): string | undefined {
   return cleaned.length > 0 ? cleaned : undefined;
 }
 
+// ─── Exclusion filter ────────────────────────────────────────────────────────
+
+const EXCLUDE_KEYWORDS = [
+  "ふるさと納税",
+  "中古",
+  "used",
+  "レンタル",
+  "訳あり",
+  "ジャンク",
+  "互換",
+  "代替",
+  "非純正",
+  "汎用",
+  "福袋",
+  "セット販売のみ",
+  "ケースのみ",
+  "保護フィルム",
+  "延長保証",
+  "保証のみ",
+  "修理",
+  "部品取り",
+  "空箱",
+  "箱のみ",
+  "説明書",
+  "マニュアル",
+];
+
+// Returns exclusion reason string if item should be excluded, otherwise null.
+function excludedByKeyword(raw: RakutenItemRaw): string | null {
+  const target = `${raw.itemName} ${raw.shopName}`.toLowerCase();
+  for (const kw of EXCLUDE_KEYWORDS) {
+    if (target.includes(kw.toLowerCase())) return `excluded_keyword: ${kw}`;
+  }
+  return null;
+}
+
+function isLowSignal(raw: RakutenItemRaw): boolean {
+  return raw.reviewCount < 3 || raw.reviewAverage === 0;
+}
+
 // ─── Normalizer ───────────────────────────────────────────────────────────────
 
 function normalizeItem(
@@ -134,7 +232,7 @@ function normalizeItem(
 
   return {
     id: `rakuten_${raw.itemCode}`,
-    name: raw.itemName,
+    name: normalizeName(raw.itemName),
     brand: extractBrand(raw.shopName),
     market,
     cat,
@@ -176,8 +274,9 @@ export async function searchRakuten(
     throw new Error(`${missing} is not set. Add it to .env.local.`);
   }
 
-  const market = params.market ?? "audio";
-  const cat    = params.cat    ?? "Wireless Mic";
+  const market          = params.market          ?? "audio";
+  const cat             = params.cat             ?? "Wireless Mic";
+  const includeLowSignal = params.includeLowSignal ?? false;
 
   const referer = (process.env.RAKUTEN_REFERER ?? "").trim() || "http://localhost:3002";
 
@@ -214,9 +313,33 @@ export async function searchRakuten(
     throw new Error(`Rakuten API error: ${data.error} — ${data.error_description}`);
   }
 
-  const items = (data.Items ?? []).map(({ Item }) =>
-    normalizeItem(Item, market, cat)
-  );
+  const items: RakutenProduct[] = [];
+  const excludedItems: ExcludedItem[] = [];
+
+  for (const { Item } of data.Items ?? []) {
+    const kwReason = excludedByKeyword(Item);
+    if (kwReason) {
+      excludedItems.push({
+        name:           Item.itemName.slice(0, 60),
+        reason:         kwReason,
+        rawReviewCount: Item.reviewCount,
+        rating:         Item.reviewAverage,
+        price:          Item.itemPrice,
+      });
+      continue;
+    }
+    if (isLowSignal(Item) && !includeLowSignal) {
+      excludedItems.push({
+        name:           Item.itemName.slice(0, 60),
+        reason:         `low_signal: reviewCount=${Item.reviewCount} rating=${Item.reviewAverage}`,
+        rawReviewCount: Item.reviewCount,
+        rating:         Item.reviewAverage,
+        price:          Item.itemPrice,
+      });
+      continue;
+    }
+    items.push(normalizeItem(Item, market, cat));
+  }
 
   return {
     items,
@@ -225,5 +348,6 @@ export async function searchRakuten(
       page:      data.page      ?? 1,
       pageCount: data.pageCount ?? 0,
     },
+    excludedItems,
   };
 }

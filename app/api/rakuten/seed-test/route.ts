@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { searchRakuten, RakutenProduct } from "@/lib/rakuten";
+import { searchRakuten, RakutenProduct, ExcludedItem } from "@/lib/rakuten";
 import { SEARCH_SEEDS, seedsForMarket, MarketSeeds } from "@/data/searchSeeds";
 
 export const runtime = "nodejs";
@@ -17,11 +17,20 @@ interface TopItem {
   itemUrl: string;
 }
 
+interface SeedExcludedItem {
+  name: string;
+  reason: string;
+  rawReviewCount: number;
+  rating: number;
+  price: number;
+}
+
 interface SeedResult {
   keyword: string;
   cat: string;
   meta: { count: number; page: number; pageCount: number } | null;
   topItems: TopItem[];
+  excludedItems: SeedExcludedItem[];
   error: string | null;
 }
 
@@ -72,19 +81,27 @@ async function runSeed(
       page:    1,
     });
     return {
-      keyword:  seed.keyword,
-      cat:      seed.cat,
-      meta:     result.meta,
-      topItems: result.items.map(toTopItem),
-      error:    null,
+      keyword:       seed.keyword,
+      cat:           seed.cat,
+      meta:          result.meta,
+      topItems:      result.items.map(toTopItem),
+      excludedItems: result.excludedItems.slice(0, 3).map((e: ExcludedItem) => ({
+        name:           e.name,
+        reason:         e.reason,
+        rawReviewCount: e.rawReviewCount,
+        rating:         e.rating,
+        price:          e.price,
+      })),
+      error:         null,
     };
   } catch (err) {
     return {
-      keyword:  seed.keyword,
-      cat:      seed.cat,
-      meta:     null,
-      topItems: [],
-      error:    err instanceof Error ? err.message : String(err),
+      keyword:       seed.keyword,
+      cat:           seed.cat,
+      meta:          null,
+      topItems:      [],
+      excludedItems: [],
+      error:         err instanceof Error ? err.message : String(err),
     };
   }
 }

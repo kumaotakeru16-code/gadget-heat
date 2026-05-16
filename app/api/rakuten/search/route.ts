@@ -32,9 +32,10 @@ export async function GET(req: NextRequest) {
   const genreId  = searchParams.get("genreId")  ?? undefined;
   const market   = searchParams.get("market")   ?? undefined;
   const cat      = searchParams.get("cat")      ?? undefined;
-  const page     = Number(searchParams.get("page")  ?? "1");
-  const hits     = Number(searchParams.get("hits")  ?? "10");
-  const debug    = searchParams.get("debug") === "true";
+  const page             = Number(searchParams.get("page")  ?? "1");
+  const hits             = Number(searchParams.get("hits")  ?? "10");
+  const debug            = searchParams.get("debug")            === "true";
+  const includeLowSignal = searchParams.get("includeLowSignal") === "true";
 
   if (!keyword && !genreId) {
     return NextResponse.json(
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const result = await searchRakuten({ keyword, genreId, page, hits, market, cat });
+    const result = await searchRakuten({ keyword, genreId, page, hits, market, cat, includeLowSignal });
     if (debug) {
       return NextResponse.json({ ...result, _debug: buildDebugInfo() });
     }
