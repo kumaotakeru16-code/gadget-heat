@@ -5,6 +5,7 @@ export interface Market {
   tagline: string;
   blurb: string;
   subcats: string[];
+  later?: boolean; // excluded from MVP; shown separately or hidden
 }
 
 export const MARKETS: Market[] = [
@@ -40,6 +41,7 @@ export const MARKETS: Market[] = [
     blurb:
       "CFexpress、SD、SSD、NAS。撮影データを記録・保存する市場。",
     subcats: ["CFexpress", "SD Card", "Portable SSD", "Card Reader", "NAS"],
+    later: true,
   },
   {
     id: "computing",

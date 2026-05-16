@@ -3,6 +3,9 @@
 import { useEffect, useMemo } from "react";
 import { MARKETS, PRODUCTS } from "@/data";
 
+const MVP_MARKETS  = MARKETS.filter((m) => m.id !== "all" && !m.later);
+const LATER_MARKETS = MARKETS.filter((m) => m.id !== "all" && m.later);
+
 interface MarketDrawerProps {
   open: boolean;
   onClose: () => void;
@@ -82,7 +85,7 @@ export default function MarketDrawer({
             </div>
           </div>
 
-          {MARKETS.slice(1).map((m) => (
+          {MVP_MARKETS.map((m) => (
             <div className="drawer-market" key={m.id}>
               <div
                 className={`market-row ${marketId === m.id && !subcat ? "active" : ""}`}
@@ -111,6 +114,37 @@ export default function MarketDrawer({
               )}
             </div>
           ))}
+
+          {LATER_MARKETS.length > 0 && (
+            <div style={{ marginTop: "1.5rem", opacity: 0.45 }}>
+              <div
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 10,
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  marginBottom: "0.5rem",
+                  paddingLeft: "0.25rem",
+                }}
+              >
+                Coming Later
+              </div>
+              {LATER_MARKETS.map((m) => (
+                <div
+                  key={m.id}
+                  className="drawer-market"
+                  style={{ pointerEvents: "none" }}
+                >
+                  <div className="market-row">
+                    <div>
+                      <div className="market-name">{m.name}</div>
+                      <div className="market-tag">{m.tagline}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div className="drawer-foot">
           <span>Beta · v0.2</span>

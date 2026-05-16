@@ -1,6 +1,9 @@
 // Search seeds for Rakuten API validation.
 // One seed = one keyword + the Gadget Heat market/cat it belongs to.
 // Used by /api/rakuten/seed-test before wiring live data to the UI.
+//
+// SEARCH_SEEDS  — MVP markets (active)
+// LATER_SEEDS   — deferred markets (not in initial launch)
 
 export interface SearchSeed {
   keyword: string;
@@ -24,18 +27,6 @@ export const SEARCH_SEEDS: MarketSeeds[] = [
       { keyword: "Hollyland Lark",         cat: "Wireless Mic" },
       { keyword: "Sennheiser MKE",         cat: "Shotgun Mic" },
       { keyword: "オーディオインターフェース", cat: "Audio Interface" },
-    ],
-  },
-  {
-    marketId: "storage",
-    marketName: "Creator Storage",
-    seeds: [
-      { keyword: "CFexpress Type B",       cat: "CFexpress" },
-      { keyword: "CFexpress Type A",       cat: "CFexpress" },
-      { keyword: "SDカード V90",           cat: "SD Card" },
-      { keyword: "Portable SSD",           cat: "Portable SSD" },
-      { keyword: "Samsung T9 SSD",         cat: "Portable SSD" },
-      { keyword: "NAS Synology",           cat: "NAS" },
     ],
   },
   {
@@ -103,7 +94,29 @@ export const SEARCH_SEEDS: MarketSeeds[] = [
   },
 ];
 
-// Lookup helper: find seeds by marketId
+// ─── Later / deferred markets ────────────────────────────────────────────────
+// SD / SSD / CFexpress are spec-comparison driven — deferred from MVP.
+
+export const LATER_SEEDS: MarketSeeds[] = [
+  {
+    marketId: "storage",
+    marketName: "Creator Storage",
+    seeds: [
+      { keyword: "CFexpress Type B",       cat: "CFexpress" },
+      { keyword: "CFexpress Type A",       cat: "CFexpress" },
+      { keyword: "SDカード V90",           cat: "SD Card" },
+      { keyword: "Portable SSD",           cat: "Portable SSD" },
+      { keyword: "Samsung T9 SSD",         cat: "Portable SSD" },
+      { keyword: "NAS Synology",           cat: "NAS" },
+    ],
+  },
+];
+
+// ─── Lookup helpers ──────────────────────────────────────────────────────────
+
 export function seedsForMarket(marketId: string): MarketSeeds | undefined {
-  return SEARCH_SEEDS.find((m) => m.marketId === marketId);
+  return (
+    SEARCH_SEEDS.find((m) => m.marketId === marketId) ??
+    LATER_SEEDS.find((m) => m.marketId === marketId)
+  );
 }
