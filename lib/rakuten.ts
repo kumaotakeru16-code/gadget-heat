@@ -218,6 +218,23 @@ function isLowSignal(raw: RakutenItemRaw): boolean {
   return raw.reviewCount < 3 || raw.reviewAverage === 0;
 }
 
+// ─── Image URL normalizer ─────────────────────────────────────────────────────
+
+// Rakuten thumbnail URLs carry ?_ex=128x128 (or 64x64 etc.) that downsample
+// the image at the CDN. Removing the param serves the original, larger image.
+function normalizeImageUrl(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  try {
+    const url = new URL(raw);
+    url.searchParams.delete("_ex");
+    const s = url.toString();
+    // Remove trailing lone "?" left after deletion
+    return s.endsWith("?") ? s.slice(0, -1) : s;
+  } catch {
+    return raw.replace(/[?&]_ex=\d+x\d+/g, "").replace(/[?&]$/, "") || undefined;
+  }
+}
+
 // ─── Normalizer ───────────────────────────────────────────────────────────────
 
 function normalizeItem(
@@ -226,9 +243,10 @@ function normalizeItem(
   cat: string
 ): RakutenProduct {
   const score = computeScore(raw.reviewAverage, raw.reviewCount);
+  // Prefer mediumImageUrls; strip the _ex downsampling param from both sources
   const imageUrl =
-    raw.mediumImageUrls?.[0]?.imageUrl ??
-    raw.smallImageUrls?.[0]?.imageUrl;
+    normalizeImageUrl(raw.mediumImageUrls?.[0]?.imageUrl) ??
+    normalizeImageUrl(raw.smallImageUrls?.[0]?.imageUrl);
 
   return {
     id: `rakuten_${raw.itemCode}`,

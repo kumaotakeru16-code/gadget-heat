@@ -48,7 +48,15 @@ function Mover1({
   return (
     <article className="mover mover-1" onClick={() => onOpen(item)}>
       <div className="mover-image">
-        <ProductImage cat={item.cat} brand={item.brand} color={item.color} src={item.imageUrl} />
+        {/* blurBackdrop: editorial treatment — keeps product against warm neutral bg.
+            To switch to image-less mode, remove src and let score/spark fill the card. */}
+        <ProductImage
+          cat={item.cat}
+          brand={item.brand}
+          color={item.color}
+          src={item.imageUrl}
+          blurBackdrop={!!item.imageUrl}
+        />
         <span className="mover-rank">
           No. 01 / {range === "week" ? "Week 20" : "May 2026"}
         </span>
