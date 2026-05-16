@@ -19,7 +19,16 @@ export default function ProductImage({
     <>
       <div className="prod-img-inner">
         {src ? (
-          <img src={src} alt={brand ? `${brand} ${cat}` : cat} />
+          <img
+            src={src}
+            alt={brand ? `${brand} ${cat}` : cat}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              display: "block",
+            }}
+          />
         ) : (
           <div
             className="prod-ph-card"

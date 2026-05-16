@@ -3,8 +3,9 @@
 import { useEffect, useMemo } from "react";
 import { MARKETS, PRODUCTS } from "@/data";
 
-const MVP_MARKETS  = MARKETS.filter((m) => m.id !== "all" && !m.later);
-const LATER_MARKETS = MARKETS.filter((m) => m.id !== "all" && m.later);
+const ACTIVE_MARKETS       = MARKETS.filter((m) => m.id !== "all" && m.status === "active");
+const EXPERIMENTAL_MARKETS = MARKETS.filter((m) => m.status === "experimental");
+const LATER_MARKETS        = MARKETS.filter((m) => m.status === "later");
 
 interface MarketDrawerProps {
   open: boolean;
@@ -39,6 +40,50 @@ export default function MarketDrawer({
     return c;
   }, []);
 
+  function MarketRow({ m, clickable = true }: { m: typeof MARKETS[0]; clickable?: boolean }) {
+    const isActive = marketId === m.id && !subcat;
+    return (
+      <div className="drawer-market" key={m.id}>
+        <div
+          className={`market-row ${isActive ? "active" : ""}`}
+          onClick={clickable ? () => onPick(m.id, null) : undefined}
+          role={clickable ? "button" : undefined}
+          style={clickable ? undefined : { pointerEvents: "none" }}
+        >
+          <div>
+            <div className="market-name">{m.name}</div>
+            <div className="market-tag">
+              {m.tagline}
+              {m.status === "experimental" && (
+                <span style={{ marginLeft: "0.4em", opacity: 0.6, fontSize: "0.85em" }}>
+                  · Beta data
+                </span>
+              )}
+              {clickable && (
+                <span style={{ marginLeft: "0.25em" }}>
+                  · {counts[m.id] ?? 0} products
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+        {clickable && m.subcats.length > 0 && (
+          <div className="subcats">
+            {m.subcats.map((s) => (
+              <button
+                key={s}
+                className={`subcat-chip ${marketId === m.id && subcat === s ? "active" : ""}`}
+                onClick={() => onPick(m.id, s)}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
       <div
@@ -61,6 +106,7 @@ export default function MarketDrawer({
           </button>
         </div>
         <div className="drawer-body">
+          {/* ALL Markets */}
           <div
             className={`all-link ${marketId === "all" ? "active" : ""}`}
             onClick={() => onPick("all", null)}
@@ -85,65 +131,53 @@ export default function MarketDrawer({
             </div>
           </div>
 
-          {MVP_MARKETS.map((m) => (
-            <div className="drawer-market" key={m.id}>
-              <div
-                className={`market-row ${marketId === m.id && !subcat ? "active" : ""}`}
-                onClick={() => onPick(m.id, null)}
-                role="button"
-              >
-                <div>
-                  <div className="market-name">{m.name}</div>
-                  <div className="market-tag">
-                    {m.tagline} · {counts[m.id] ?? 0} products
-                  </div>
-                </div>
-              </div>
-              {m.subcats.length > 0 && (
-                <div className="subcats">
-                  {m.subcats.map((s) => (
-                    <button
-                      key={s}
-                      className={`subcat-chip ${marketId === m.id && subcat === s ? "active" : ""}`}
-                      onClick={() => onPick(m.id, s)}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+          {/* Active markets */}
+          {ACTIVE_MARKETS.map((m) => (
+            <MarketRow key={m.id} m={m} />
           ))}
 
-          {LATER_MARKETS.length > 0 && (
-            <div style={{ marginTop: "1.5rem", opacity: 0.45 }}>
+          {/* Experimental markets */}
+          {EXPERIMENTAL_MARKETS.length > 0 && (
+            <>
               <div
                 style={{
                   fontFamily: "var(--font-mono)",
                   fontSize: 10,
                   letterSpacing: "0.12em",
                   textTransform: "uppercase",
-                  marginBottom: "0.5rem",
-                  paddingLeft: "0.25rem",
+                  opacity: 0.5,
+                  margin: "1.25rem 0 0.5rem 0.25rem",
+                }}
+              >
+                Beta Markets
+              </div>
+              {EXPERIMENTAL_MARKETS.map((m) => (
+                <MarketRow key={m.id} m={m} />
+              ))}
+            </>
+          )}
+
+          {/* Later markets — visible but not clickable */}
+          {LATER_MARKETS.length > 0 && (
+            <>
+              <div
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 10,
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  opacity: 0.35,
+                  margin: "1.25rem 0 0.5rem 0.25rem",
                 }}
               >
                 Coming Later
               </div>
-              {LATER_MARKETS.map((m) => (
-                <div
-                  key={m.id}
-                  className="drawer-market"
-                  style={{ pointerEvents: "none" }}
-                >
-                  <div className="market-row">
-                    <div>
-                      <div className="market-name">{m.name}</div>
-                      <div className="market-tag">{m.tagline}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+              <div style={{ opacity: 0.4 }}>
+                {LATER_MARKETS.map((m) => (
+                  <MarketRow key={m.id} m={m} clickable={false} />
+                ))}
+              </div>
+            </>
           )}
         </div>
         <div className="drawer-foot">

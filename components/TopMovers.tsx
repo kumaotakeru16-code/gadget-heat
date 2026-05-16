@@ -48,7 +48,7 @@ function Mover1({
   return (
     <article className="mover mover-1" onClick={() => onOpen(item)}>
       <div className="mover-image">
-        <ProductImage cat={item.cat} brand={item.brand} color={item.color} />
+        <ProductImage cat={item.cat} brand={item.brand} color={item.color} src={item.imageUrl} />
         <span className="mover-rank">
           No. 01 / {range === "week" ? "Week 20" : "May 2026"}
         </span>
@@ -89,9 +89,19 @@ function Mover1({
 
         <div className="signals">
           <div className="signal">
-            <div className="l">Reviews Δ</div>
-            <div className="v">+{item.reviewsDelta}</div>
-            <div className="d">→ {item.reviewsVelocity.toFixed(1)}/day</div>
+            {item.rawReviewCount !== undefined && item.reviewsDelta === 0 ? (
+              <>
+                <div className="l">Reviews</div>
+                <div className="v">{item.rawReviewCount}</div>
+                <div className="d">total</div>
+              </>
+            ) : (
+              <>
+                <div className="l">Reviews Δ</div>
+                <div className="v">+{item.reviewsDelta}</div>
+                <div className="d">→ {item.reviewsVelocity.toFixed(1)}/day</div>
+              </>
+            )}
           </div>
           <div className="signal">
             <div className="l">Rating</div>
@@ -177,6 +187,7 @@ function MoverSide({
           cat={item.cat}
           brand={item.brand}
           color={item.color}
+          src={item.imageUrl}
           showLabel={false}
         />
         <span className="mover-rank">
@@ -212,8 +223,17 @@ function MoverSide({
         </div>
         <div className="mini-stats">
           <span className="it">
-            <span className="l">Reviews Δ</span>
-            <span className="v">+{item.reviewsDelta}</span>
+            {item.rawReviewCount !== undefined && item.reviewsDelta === 0 ? (
+              <>
+                <span className="l">Reviews</span>
+                <span className="v">{item.rawReviewCount}</span>
+              </>
+            ) : (
+              <>
+                <span className="l">Reviews Δ</span>
+                <span className="v">+{item.reviewsDelta}</span>
+              </>
+            )}
           </span>
           <span className="it">
             <span className="l">Rating</span>

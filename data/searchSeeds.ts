@@ -95,7 +95,10 @@ export const SEARCH_SEEDS: MarketSeeds[] = [
 ];
 
 // ─── Later / deferred markets ────────────────────────────────────────────────
-// SD / SSD / CFexpress are spec-comparison driven — deferred from MVP.
+// Creator Storage is a core part of Gadget Heat's long-term market structure.
+// It is deferred from the Rakuten MVP because SD / SSD / CFexpress search results
+// on Rakuten skew heavily toward price and capacity comparisons, making it
+// unsuitable for early world-view validation of the "market heat" concept.
 
 export const LATER_SEEDS: MarketSeeds[] = [
   {

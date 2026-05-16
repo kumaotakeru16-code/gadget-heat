@@ -1,3 +1,15 @@
+// Market status controls how each market appears in the Drawer and
+// whether it is included in ALL Markets aggregation.
+//
+//   active       — Rakuten MVP: actively displayed and validated
+//   experimental — displayed but data quality still being verified
+//   later        — Coming Later in Drawer, excluded from ALL Markets feed
+//                  (Creator Storage: deferred not because it's outside Gadget Heat's
+//                   vision, but because price/capacity comparisons dominate Rakuten
+//                   search results, making it unsuitable for early world-view validation)
+
+export type MarketStatus = "active" | "experimental" | "later";
+
 export interface Market {
   id: string;
   name: string;
@@ -5,7 +17,7 @@ export interface Market {
   tagline: string;
   blurb: string;
   subcats: string[];
-  later?: boolean; // excluded from MVP; shown separately or hidden
+  status: MarketStatus;
 }
 
 export const MARKETS: Market[] = [
@@ -17,6 +29,7 @@ export const MARKETS: Market[] = [
     blurb:
       "Creator Gear 全体で、今、市場の熱量が高まっている製品。",
     subcats: [],
+    status: "active",
   },
   {
     id: "audio",
@@ -32,6 +45,7 @@ export const MARKETS: Market[] = [
       "Lavalier Mic",
       "Audio Interface",
     ],
+    status: "active",
   },
   {
     id: "storage",
@@ -41,7 +55,7 @@ export const MARKETS: Market[] = [
     blurb:
       "CFexpress、SD、SSD、NAS。撮影データを記録・保存する市場。",
     subcats: ["CFexpress", "SD Card", "Portable SSD", "Card Reader", "NAS"],
-    later: true,
+    status: "later",
   },
   {
     id: "computing",
@@ -58,6 +72,7 @@ export const MARKETS: Market[] = [
       "Thunderbolt Dock",
       "Capture Device",
     ],
+    status: "experimental",
   },
   {
     id: "support",
@@ -67,6 +82,7 @@ export const MARKETS: Market[] = [
     blurb:
       "カメラを支え、保持し、動かす。三脚・ジンバル・ケージ・リグの市場。",
     subcats: ["Tripod", "Gimbal", "Grip", "Cage", "Rig", "Mount"],
+    status: "active",
   },
   {
     id: "power",
@@ -76,6 +92,7 @@ export const MARKETS: Market[] = [
     blurb:
       "撮影を止めないための電源系。バッテリー、チャージャー、カプラー。",
     subcats: ["Battery", "Charger", "Coupler", "Power Bank"],
+    status: "experimental",
   },
   {
     id: "lighting",
@@ -84,6 +101,7 @@ export const MARKETS: Market[] = [
     tagline: "Shape the Light",
     blurb: "LEDからオンカメラライトまで、光をコントロールする市場。",
     subcats: ["LED Light", "On-Camera Light", "Light Stand", "Video Light"],
+    status: "experimental",
   },
   {
     id: "monitor",
@@ -93,6 +111,7 @@ export const MARKETS: Market[] = [
     blurb:
       "カメラモニター、編集モニター。映像を確認する市場。",
     subcats: ["Camera Monitor", "Creator Monitor", "Field Monitor"],
+    status: "experimental",
   },
   {
     id: "streaming",
@@ -102,10 +121,17 @@ export const MARKETS: Market[] = [
     blurb:
       "キャプチャー、ミキサー、Webcam。配信のための機材市場。",
     subcats: ["Capture Card", "Streaming Mixer", "Webcam", "Stream Deck"],
+    status: "experimental",
   },
 ];
 
 export const ALL_MARKET = MARKETS[0];
+
+// Market IDs included in the ALL Markets aggregation feed.
+// "later" markets are excluded until their data quality is validated.
+export const ALL_MARKET_IDS = MARKETS
+  .filter((m) => m.id !== "all" && m.status !== "later")
+  .map((m) => m.id);
 
 export function marketById(id: string): Market {
   return MARKETS.find((m) => m.id === id) ?? ALL_MARKET;

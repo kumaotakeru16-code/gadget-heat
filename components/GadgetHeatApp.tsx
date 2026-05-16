@@ -5,6 +5,7 @@ import { PRODUCTS, MARKETS, ALL_MARKET, marketById } from "@/data";
 import { LocaleCode } from "@/data/locales";
 import { Product } from "@/data/products";
 import { applyMarketFilter } from "@/lib/filters";
+import { RAKUTEN_ACTIVE_MARKET_IDS } from "@/lib/fetchTopMovers";
 import { fmt, signed } from "@/lib/format";
 import TopBar from "./TopBar";
 import MarketDrawer from "./MarketDrawer";
@@ -15,7 +16,11 @@ import CompactRanking from "./CompactRanking";
 import TrendDetail from "./TrendDetail";
 import Methodology from "./Methodology";
 
-export default function GadgetHeatApp() {
+interface GadgetHeatAppProps {
+  initialRakutenProducts?: Product[] | null;
+}
+
+export default function GadgetHeatApp({ initialRakutenProducts }: GadgetHeatAppProps) {
   const [range, setRange] = useState<"week" | "month">("week");
   const [locale, setLocale] = useState<LocaleCode>("jp");
   const [marketId, setMarketId] = useState("all");
@@ -29,10 +34,25 @@ export default function GadgetHeatApp() {
   }, []);
 
   const currentMarket = useMemo(() => marketById(marketId), [marketId]);
-  const filtered = useMemo(
-    () => applyMarketFilter(PRODUCTS, marketId, subcat),
-    [marketId, subcat]
-  );
+
+  // Use Rakuten data when the selected market has live data; fall back to static.
+  const filtered = useMemo(() => {
+    const useRakuten =
+      initialRakutenProducts &&
+      initialRakutenProducts.length > 0 &&
+      (marketId === "all" || RAKUTEN_ACTIVE_MARKET_IDS.includes(marketId));
+
+    if (useRakuten) {
+      let arr = initialRakutenProducts!;
+      if (marketId !== "all") {
+        arr = arr.filter((p) => p.market === marketId);
+      }
+      if (subcat) arr = arr.filter((p) => p.cat === subcat);
+      return [...arr].sort((a, b) => b.score - a.score);
+    }
+
+    return applyMarketFilter(PRODUCTS, marketId, subcat);
+  }, [marketId, subcat, initialRakutenProducts]);
 
   const handlePick = useCallback(
     (mid: string, sc: string | null) => {
@@ -47,6 +67,11 @@ export default function GadgetHeatApp() {
 
   const top3 = filtered.slice(0, 3);
   const rest = filtered.slice(3);
+
+  const isLiveData =
+    !!initialRakutenProducts &&
+    initialRakutenProducts.length > 0 &&
+    (marketId === "all" || RAKUTEN_ACTIVE_MARKET_IDS.includes(marketId));
 
   if (detail) {
     return (
@@ -113,6 +138,9 @@ export default function GadgetHeatApp() {
               {" · "}
               {filtered.length}{" "}
               {locale === "jp" ? "製品を監視中" : "products tracked"}
+              {isLiveData && (
+                <span style={{ marginLeft: "0.5em", opacity: 0.55 }}>· Live</span>
+              )}
             </small>
           </h2>
           {currentMarket.subcats.length > 0 && (
@@ -161,7 +189,8 @@ export default function GadgetHeatApp() {
           <div className="colophon">
             <span>Gadget Heat · Creator Gear Market Viewer</span>
             <span>
-              v0.2 Concept · Static Mock ·{" "}
+              v0.2 Concept ·{" "}
+              {isLiveData ? "Rakuten Live" : "Static Mock"} ·{" "}
               {today ?? "—"}
             </span>
           </div>

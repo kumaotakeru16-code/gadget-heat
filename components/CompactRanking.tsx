@@ -68,6 +68,7 @@ function RankRow({
           brand={item.brand}
           showLabel={false}
           color={item.color}
+          src={item.imageUrl}
           size="sm"
         />
       </div>
@@ -87,9 +88,19 @@ function RankRow({
         </div>
       </div>
       <div className="rk-metric">
-        <div className="ml">Reviews Δ</div>
-        <div className="mv">+{item.reviewsDelta}</div>
-        <div className="md up">→ {item.reviewsVelocity.toFixed(1)}/d</div>
+        {item.rawReviewCount !== undefined && item.reviewsDelta === 0 ? (
+          <>
+            <div className="ml">Reviews</div>
+            <div className="mv">{item.rawReviewCount}</div>
+            <div className="md">total</div>
+          </>
+        ) : (
+          <>
+            <div className="ml">Reviews Δ</div>
+            <div className="mv">+{item.reviewsDelta}</div>
+            <div className="md up">→ {item.reviewsVelocity.toFixed(1)}/d</div>
+          </>
+        )}
       </div>
       <div className="rk-metric">
         <div className="ml">Rating</div>
