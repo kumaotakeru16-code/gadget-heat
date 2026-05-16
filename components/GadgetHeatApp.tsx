@@ -1,0 +1,172 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { PRODUCTS, MARKETS, ALL_MARKET, marketById } from "@/data";
+import { LocaleCode } from "@/data/locales";
+import { Product } from "@/data/products";
+import { applyMarketFilter } from "@/lib/filters";
+import { fmt, signed } from "@/lib/format";
+import TopBar from "./TopBar";
+import MarketDrawer from "./MarketDrawer";
+import Hero from "./Hero";
+import Ticker from "./Ticker";
+import TopMovers from "./TopMovers";
+import CompactRanking from "./CompactRanking";
+import TrendDetail from "./TrendDetail";
+import Methodology from "./Methodology";
+
+export default function GadgetHeatApp() {
+  const [range, setRange] = useState<"week" | "month">("week");
+  const [locale, setLocale] = useState<LocaleCode>("jp");
+  const [marketId, setMarketId] = useState("all");
+  const [subcat, setSubcat] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [detail, setDetail] = useState<Product | null>(null);
+  const [showSpark, setShowSpark] = useState(true);
+  const [today, setToday] = useState<string | null>(null);
+  useEffect(() => {
+    setToday(new Date().toLocaleDateString("en-CA"));
+  }, []);
+
+  const currentMarket = useMemo(() => marketById(marketId), [marketId]);
+  const filtered = useMemo(
+    () => applyMarketFilter(PRODUCTS, marketId, subcat),
+    [marketId, subcat]
+  );
+
+  const handlePick = useCallback(
+    (mid: string, sc: string | null) => {
+      setMarketId(mid);
+      setSubcat(sc);
+      setDrawerOpen(false);
+      setDetail(null);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    []
+  );
+
+  const top3 = filtered.slice(0, 3);
+  const rest = filtered.slice(3);
+
+  if (detail) {
+    return (
+      <div className="app">
+        <TopBar
+          range={range}
+          setRange={setRange}
+          locale={locale}
+          setLocale={setLocale}
+          currentMarket={currentMarket}
+          onOpenDrawer={() => setDrawerOpen(true)}
+        />
+        <MarketDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          marketId={marketId}
+          subcat={subcat}
+          onPick={handlePick}
+        />
+        <TrendDetail
+          item={detail}
+          locale={locale}
+          range={range}
+          onBack={() => setDetail(null)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="app">
+      <TopBar
+        range={range}
+        setRange={setRange}
+        locale={locale}
+        setLocale={setLocale}
+        currentMarket={currentMarket}
+        onOpenDrawer={() => setDrawerOpen(true)}
+      />
+      <MarketDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        marketId={marketId}
+        subcat={subcat}
+        onPick={handlePick}
+      />
+      <Hero
+        market={currentMarket}
+        subcat={subcat}
+        range={range}
+        locale={locale}
+        filteredCount={filtered.length}
+      />
+      <Ticker products={PRODUCTS} />
+
+      <div className="container">
+        <div className="tabs-row">
+          <h2 className="section-title">
+            {marketId === "all"
+              ? "Top Movers · Across Creator Markets"
+              : `Top Movers · ${currentMarket.name}${subcat ? ` · ${subcat}` : ""}`}
+            <small>
+              {range === "week" ? "WEEK 20 · 2026" : "MAY · 2026"}
+              {" · "}
+              {filtered.length}{" "}
+              {locale === "jp" ? "製品を監視中" : "products tracked"}
+            </small>
+          </h2>
+          {currentMarket.subcats.length > 0 && (
+            <div className="tabs">
+              <button
+                className={`tab ${subcat === null ? "active" : ""}`}
+                onClick={() => setSubcat(null)}
+              >
+                All
+              </button>
+              {currentMarket.subcats.map((s) => (
+                <button
+                  key={s}
+                  className={`tab ${subcat === s ? "active" : ""}`}
+                  onClick={() => setSubcat(s)}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {top3.length > 0 && (
+        <TopMovers
+          items={top3}
+          locale={locale}
+          range={range}
+          onOpen={setDetail}
+        />
+      )}
+
+      {rest.length > 0 && (
+        <CompactRanking
+          items={rest}
+          showSpark={showSpark}
+          onOpen={setDetail}
+          range={range}
+        />
+      )}
+
+      <section className="methodology">
+        <div className="container">
+          <Methodology locale={locale} />
+          <div className="colophon">
+            <span>Gadget Heat · Creator Gear Market Viewer</span>
+            <span>
+              v0.2 Concept · Static Mock ·{" "}
+              {today ?? "—"}
+            </span>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}

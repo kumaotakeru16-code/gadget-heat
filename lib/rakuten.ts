@@ -1,0 +1,229 @@
+// Rakuten Ichiba Item Search API client + Product normalizer.
+// This module runs SERVER-SIDE ONLY. Never import from client components.
+
+const RAKUTEN_API_URL =
+  "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20220601";
+
+// ─── Raw Rakuten API types ────────────────────────────────────────────────────
+
+interface RakutenItemRaw {
+  itemCode: string;
+  itemName: string;
+  itemPrice: number;
+  itemUrl: string;
+  reviewAverage: number;
+  reviewCount: number;
+  smallImageUrls: { imageUrl: string }[];
+  mediumImageUrls: { imageUrl: string }[];
+  shopName: string;
+  genreId: string;
+}
+
+interface RakutenApiResponse {
+  Items?: { Item: RakutenItemRaw }[];
+  count?: number;
+  page?: number;
+  pageCount?: number;
+  error?: string;
+  error_description?: string;
+}
+
+// ─── Normalized product type returned by this module ─────────────────────────
+
+export interface RakutenProduct {
+  id: string;
+  name: string;
+  brand?: string;
+  market: string;
+  cat: string;
+  score: number;
+  scoreChg: number;
+  scoreChg24h: number;
+  reviewsDelta: number;
+  reviewsVelocity: number;
+  rating: number;
+  ratingChg: number;
+  rankUp: number;
+  isNew: boolean;
+  priceChg: number;
+  price: number;
+  imageUrl?: string;
+  itemUrl: string;
+  source: "rakuten";
+  rawReviewCount: number;
+  // UI rendering fields — computed from available data
+  aux: string[];
+  spark: number[];
+  color: string;
+}
+
+export interface RakutenSearchMeta {
+  count: number;
+  page: number;
+  pageCount: number;
+}
+
+export interface RakutenSearchResult {
+  items: RakutenProduct[];
+  meta: RakutenSearchMeta;
+}
+
+// ─── Search params ────────────────────────────────────────────────────────────
+
+export interface RakutenSearchParams {
+  keyword?: string;
+  genreId?: string;
+  page?: number;
+  hits?: number;
+  // Optional categorization hints — used when normalizing
+  market?: string;
+  cat?: string;
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function computeScore(rating: number, reviewCount: number): number {
+  // Trend Score = reviewAverage × log10(reviewCount + 10) × 12, capped at 100
+  return Math.min(100, Math.round(rating * Math.log10(reviewCount + 10) * 12));
+}
+
+function generateSpark(score: number): number[] {
+  // Deterministic upward curve based on score — no Math.random()
+  const base = score * 0.72;
+  return Array.from({ length: 12 }, (_, i) => {
+    const t = i / 11;
+    const wave = Math.sin(i * 1.4 + score * 0.05) * score * 0.03;
+    return Math.round((base + (score - base) * t + wave) * 10) / 10;
+  });
+}
+
+function scoreToColor(score: number): string {
+  // Warm, muted oklch — stays within the paper palette family
+  const l = (0.80 + (score / 100) * 0.06).toFixed(2);
+  return `oklch(${l} 0.03 70)`;
+}
+
+function deriveAux(rating: number, reviewCount: number): string[] {
+  const tags: string[] = [];
+  if (rating >= 4.5) tags.push("HIGH RATED");
+  if (reviewCount < 15) tags.push("NEW ENTRY");
+  return tags;
+}
+
+// Rakuten doesn't expose a structured brand field.
+// Attempt to extract from shopName as a rough proxy.
+function extractBrand(shopName: string): string | undefined {
+  // Keep the first "word cluster" before common suffixes like 楽天市場店 / 公式 / ショップ
+  const cleaned = shopName
+    .replace(/楽天市場店|楽天市場|公式ショップ|公式|ショップ|オンライン/g, "")
+    .trim();
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
+// ─── Normalizer ───────────────────────────────────────────────────────────────
+
+function normalizeItem(
+  raw: RakutenItemRaw,
+  market: string,
+  cat: string
+): RakutenProduct {
+  const score = computeScore(raw.reviewAverage, raw.reviewCount);
+  const imageUrl =
+    raw.mediumImageUrls?.[0]?.imageUrl ??
+    raw.smallImageUrls?.[0]?.imageUrl;
+
+  return {
+    id: `rakuten_${raw.itemCode}`,
+    name: raw.itemName,
+    brand: extractBrand(raw.shopName),
+    market,
+    cat,
+    score,
+    scoreChg: 0,
+    scoreChg24h: 0,
+    reviewsDelta: 0,
+    reviewsVelocity: 0,
+    rating: raw.reviewAverage,
+    ratingChg: 0,
+    rankUp: 0,
+    isNew: raw.reviewCount < 15,
+    priceChg: 0,
+    price: raw.itemPrice,
+    imageUrl,
+    itemUrl: raw.itemUrl,
+    source: "rakuten",
+    rawReviewCount: raw.reviewCount,
+    aux: deriveAux(raw.reviewAverage, raw.reviewCount),
+    spark: generateSpark(score),
+    color: scoreToColor(score),
+  };
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+export async function searchRakuten(
+  params: RakutenSearchParams
+): Promise<RakutenSearchResult> {
+  const applicationId = process.env.RAKUTEN_APPLICATION_ID?.trim();
+  const accessKey     = process.env.RAKUTEN_ACCESS_KEY?.trim();
+  const affiliateId   = process.env.RAKUTEN_AFFILIATE_ID?.trim();
+
+  const missing = [
+    !applicationId && "RAKUTEN_APPLICATION_ID",
+    !accessKey     && "RAKUTEN_ACCESS_KEY",
+  ].filter(Boolean).join(", ");
+  if (missing) {
+    throw new Error(`${missing} is not set. Add it to .env.local.`);
+  }
+
+  const market = params.market ?? "audio";
+  const cat    = params.cat    ?? "Wireless Mic";
+
+  const referer = (process.env.RAKUTEN_REFERER ?? "").trim() || "http://localhost:3002";
+
+  const query = new URLSearchParams({
+    applicationId: applicationId!,
+    accessKey:     accessKey!,
+    ...(affiliateId ? { affiliateId } : {}),
+    ...(params.keyword ? { keyword: params.keyword } : {}),
+    ...(params.genreId ? { genreId: params.genreId } : {}),
+    hits:   String(Math.min(params.hits ?? 10, 30)), // Rakuten max = 30
+    page:   String(params.page  ?? 1),
+    format: "json",
+  });
+
+  const res = await fetch(`${RAKUTEN_API_URL}?${query.toString()}`, {
+    headers: {
+      "Origin":     referer,
+      "Referer":    referer,
+      "User-Agent": "GadgetHeat/0.1",
+    },
+    // ISR-style: re-validate every 10 minutes server-side
+    next: { revalidate: 600 },
+  });
+
+  if (!res.ok) {
+    let body = "";
+    try { body = await res.text(); } catch { /* ignore */ }
+    throw new Error(`Rakuten API HTTP error: ${res.status} — ${body}`);
+  }
+
+  const data: RakutenApiResponse = await res.json();
+
+  if (data.error) {
+    throw new Error(`Rakuten API error: ${data.error} — ${data.error_description}`);
+  }
+
+  const items = (data.Items ?? []).map(({ Item }) =>
+    normalizeItem(Item, market, cat)
+  );
+
+  return {
+    items,
+    meta: {
+      count:     data.count     ?? 0,
+      page:      data.page      ?? 1,
+      pageCount: data.pageCount ?? 0,
+    },
+  };
+}
