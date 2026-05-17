@@ -19,8 +19,9 @@ export async function GET(req: NextRequest) {
   const secret = process.env.ADMIN_SECRET?.trim();
   if (!secret) return unauthorized();
 
-  const auth = req.headers.get("authorization") ?? "";
-  if (auth !== `Bearer ${secret}`) return unauthorized();
+  const bearer = req.headers.get("authorization")?.replace("Bearer ", "");
+  const querySecret = req.nextUrl.searchParams.get("secret");
+  if (bearer !== secret && querySecret !== secret) return unauthorized();
 
   const { searchParams } = new URL(req.url);
   const date = searchParams.get("date") ?? new Date().toISOString().slice(0, 10);
