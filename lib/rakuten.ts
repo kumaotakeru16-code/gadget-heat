@@ -80,15 +80,13 @@ export interface RakutenSearchResult {
 // ─── Search params ────────────────────────────────────────────────────────────
 
 export interface RakutenSearchParams {
-  keyword?: string;
-  genreId?: string;
-  page?: number;
-  hits?: number;
-  // Optional categorization hints — used when normalizing
-  market?: string;
-  cat?: string;
-  // When true, keeps items with reviewCount < 3 or rating = 0 (default: false)
-  includeLowSignal?: boolean;
+  keyword?:          string;
+  genreId?:          number;   // Rakuten genre ID — restricts results to this genre tree
+  page?:             number;
+  hits?:             number;
+  market?:           string;   // normalization hint: sets product.market
+  cat?:              string;   // normalization hint: sets product.cat
+  includeLowSignal?: boolean;  // keep items with reviewCount < 3 or rating = 0
 }
 
 // ─── Name normalizer ──────────────────────────────────────────────────────────
@@ -292,8 +290,8 @@ export async function searchRakuten(
     throw new Error(`${missing} is not set. Add it to .env.local.`);
   }
 
-  const market          = params.market          ?? "audio";
-  const cat             = params.cat             ?? "Wireless Mic";
+  const market          = params.market ?? "beauty";
+  const cat             = params.cat    ?? "unknown";
   const includeLowSignal = params.includeLowSignal ?? false;
 
   const referer = (process.env.RAKUTEN_REFERER ?? "").trim() || "http://localhost:3002";
@@ -303,7 +301,7 @@ export async function searchRakuten(
     accessKey:     accessKey!,
     ...(affiliateId ? { affiliateId } : {}),
     ...(params.keyword ? { keyword: params.keyword } : {}),
-    ...(params.genreId ? { genreId: params.genreId } : {}),
+    ...(params.genreId != null ? { genreId: String(params.genreId) } : {}),
     hits:   String(Math.min(params.hits ?? 10, 30)), // Rakuten max = 30
     page:   String(params.page  ?? 1),
     format: "json",

@@ -29,7 +29,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
 
   const keyword  = searchParams.get("keyword")  ?? undefined;
-  const genreId  = searchParams.get("genreId")  ?? undefined;
+  const genreIdRaw = searchParams.get("genreId");
+  const genreId    = genreIdRaw != null ? parseInt(genreIdRaw, 10) : undefined;
   const market   = searchParams.get("market")   ?? undefined;
   const cat      = searchParams.get("cat")      ?? undefined;
   const page             = Number(searchParams.get("page")  ?? "1");

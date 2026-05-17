@@ -27,7 +27,8 @@ import {
 
 interface CallResult {
   marketId: string;
-  keyword:  string;
+  keyword?: string;
+  genreId?: number;
   page:     number;
   status:   "success" | "failed";
   raw:      number;
@@ -60,7 +61,7 @@ export interface CategoryFetchDebugReport {
   totalRequests:            number;
   successfulRequests:       number;
   failedRequests:           number;
-  failedSamples:            { marketId: string; keyword: string; page: number; error: string }[];
+  failedSamples:            { marketId: string; keyword: string | undefined; page: number; error: string }[];
 
   // Pipeline stages
   rawItemsCount:            number;
@@ -124,32 +125,34 @@ export async function fetchByCategoriesDebug(options: {
     ? MARKET_CATEGORIES.filter((m) => m.marketId === marketFilter)
     : MARKET_CATEGORIES;
 
-  const callDefs: { marketId: string; keyword: string; cat: string; page: number }[] = [];
+  const callDefs: { marketId: string; keyword?: string; cat: string; genreId?: number; page: number }[] = [];
   for (const market of markets) {
     for (const entry of market.categories) {
       const pages = Math.min(entry.pages ?? 1, 3);
       for (let page = 1; page <= pages; page++) {
-        callDefs.push({ marketId: market.marketId, keyword: entry.keyword, cat: entry.cat, page });
+        callDefs.push({ marketId: market.marketId, keyword: entry.keyword, cat: entry.cat, genreId: entry.genreId, page });
       }
     }
   }
 
-  const tasks = callDefs.map(({ marketId, keyword, cat, page }) => async (): Promise<CallResult> => {
+  const tasks = callDefs.map(({ marketId, keyword, cat, genreId, page }) => async (): Promise<CallResult> => {
     try {
       const result = await withRetry(() =>
         searchRakuten({
           keyword,
+          genreId,
           market:           marketId,
           cat,
           hits:             30,
           page,
-          includeLowSignal: true, // see every item before any app-level filtering
+          includeLowSignal: true,
         })
       );
 
       return {
         marketId,
         keyword,
+        genreId,
         page,
         status:   "success",
         raw:      result.items.length + result.excludedItems.length,
@@ -161,6 +164,7 @@ export async function fetchByCategoriesDebug(options: {
       return {
         marketId,
         keyword,
+        genreId,
         page,
         status:   "failed",
         raw:      0,

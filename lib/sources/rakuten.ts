@@ -40,6 +40,7 @@ export const rakutenSource: MarketProductSource = {
   async searchProducts(params: SourceSearchParams): Promise<Product[]> {
     const result = await searchRakuten({
       keyword:          params.keyword,
+      genreId:          params.genreId,
       market:           params.market,
       cat:              params.cat,
       hits:             params.hits ?? 10,

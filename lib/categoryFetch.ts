@@ -4,6 +4,7 @@
 import "server-only";
 
 import { sourceForLocale } from "./sources";
+import { fetchRakutenRanking } from "./rakutenGenre";
 import { MARKET_CATEGORIES } from "@/data/marketCategories";
 import type { Product } from "@/data/products";
 import type { LocaleCode } from "@/data/locales";
@@ -188,23 +189,50 @@ export async function fetchByCategories(
 ): Promise<CategoryFetchResult> {
   const source = sourceForLocale(locale);
 
-  const calls: { marketId: string; keyword: string; cat: string; page: number }[] = [];
+  const calls: { marketId: string; keyword?: string; cat: string; genreId?: number; page: number }[] = [];
   for (const market of MARKET_CATEGORIES) {
     for (const entry of market.categories) {
       const pages = Math.min(entry.pages ?? 1, 3);
       for (let page = 1; page <= pages; page++) {
-        calls.push({ marketId: market.marketId, keyword: entry.keyword, cat: entry.cat, page });
+        calls.push({
+          marketId: market.marketId,
+          keyword:  entry.keyword,
+          cat:      entry.cat,
+          genreId:  entry.genreId,
+          page,
+        });
       }
     }
   }
 
-  const tasks = calls.map(({ marketId, keyword, cat, page }) => () =>
+  const tasks = calls.map(({ marketId, keyword, cat, genreId, page }) => () =>
     withRetry(() =>
-      source.searchProducts({ keyword, market: marketId, cat, hits: 30, page })
+      source.searchProducts({ keyword, market: marketId, cat, genreId, hits: 30, page })
     )
   );
 
   const results = await withConcurrency(tasks, CONCURRENCY, INTER_REQUEST_DELAY_MS);
+
+  // ── Ranking supplement ───────────────────────────────────────────────────────
+  // Entries with ranking: true and genreId set get an extra Ranking API fetch.
+  // Results are added to the main pool and subject to the same dedup/quality gates.
+  const rankingEntries = locale === "jp"
+    ? MARKET_CATEGORIES.flatMap((mc) =>
+        mc.categories
+          .filter((e): e is typeof e & { genreId: number } => !!(e.ranking && e.genreId))
+          .map((e) => ({ marketId: mc.marketId, cat: e.cat, genreId: e.genreId }))
+      )
+    : [];
+
+  const rankingResults = rankingEntries.length > 0
+    ? await withConcurrency(
+        rankingEntries.map(({ marketId, cat, genreId }) => () =>
+          withRetry(() => fetchRakutenRanking({ genreId, market: marketId, cat, hits: 30 }))
+        ),
+        CONCURRENCY,
+        INTER_REQUEST_DELAY_MS,
+      )
+    : [];
 
   let rawItemsCount        = 0;
   let removedByHardExclude = 0;
@@ -240,6 +268,47 @@ export async function fetchByCategories(
       } else {
         products.push(p);
       }
+    }
+  }
+
+  // Process ranking supplement results
+  for (const r of rankingResults) {
+    if (r.status === "rejected") continue;
+    successfulRequests++;
+    for (const item of r.value) {
+      // Convert RakutenRankingItem → Product (minimal fields needed for pipeline)
+      const p: Product = {
+        id:              item.id,
+        name:            item.name,
+        brand:           item.brand ?? "",
+        market:          item.market,
+        cat:             item.cat,
+        score:           Math.min(100, Math.round(item.rating * Math.log10(item.rawReviewCount + 10) * 12)),
+        scoreChg:        0,
+        scoreChg24h:     0,
+        reviewsDelta:    0,
+        reviewsVelocity: 0,
+        rating:          item.rating,
+        ratingChg:       0,
+        rankUp:          0,
+        isNew:           item.rawReviewCount < 15,
+        priceChg:        0,
+        price:           item.price,
+        imageUrl:        item.imageUrl,
+        itemUrl:         item.itemUrl,
+        rawReviewCount:  item.rawReviewCount,
+        source:          "rakuten",
+        aux:             item.rating >= 4.5 ? ["HIGH RATED"] : [],
+        spark:           [],
+        color:           "oklch(0.84 0.03 70)",
+      };
+      rawItemsCount++;
+      if (isHardExclude(p)) { removedByHardExclude++; continue; }
+      if (seen.has(p.id)) continue;
+      seen.add(p.id);
+      const penalty = softPenaltyFactor(p);
+      if (penalty < 1.0) { penalizedLowSignal++; products.push({ ...p, score: Math.round(p.score * penalty) }); }
+      else { products.push(p); }
     }
   }
 

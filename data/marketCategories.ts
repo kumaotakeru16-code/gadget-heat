@@ -12,9 +12,12 @@
 // Category sweep is driven entirely by this file — no other config needed.
 
 export interface CategoryEntry {
-  keyword: string;
-  cat:     string;
-  pages?:  number; // pages to fetch (default 1, Rakuten max 30 items/page)
+  keyword?:  string;  // keyword for Item Search; omit for genre-only search
+  cat:       string;
+  genreId?:  number;  // Rakuten genre ID — restricts search to this genre tree
+                      // Find IDs via GET /api/debug/genre-browse?secret=...
+  pages?:    number;  // pages to fetch (default 1, Rakuten max 30 items/page)
+  ranking?:  boolean; // supplement with Ranking API results (requires genreId)
 }
 
 export interface MarketCategory {

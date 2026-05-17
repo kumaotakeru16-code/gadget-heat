@@ -128,6 +128,7 @@ export default function GadgetHeatApp({
         marketId={marketId}
         subcat={subcat}
         onPick={handlePick}
+        liveProducts={initialRakutenProducts}
       />
       <Hero
         market={currentMarket}
@@ -137,7 +138,11 @@ export default function GadgetHeatApp({
         filteredCount={filtered.length}
         stats={isLiveData ? (initialStats ?? null) : null}
       />
-      <Ticker products={PRODUCTS} />
+      <Ticker products={
+        initialRakutenProducts && initialRakutenProducts.length > 0
+          ? initialRakutenProducts
+          : PRODUCTS
+      } />
 
       <div className="container">
         <div className="tabs-row">
