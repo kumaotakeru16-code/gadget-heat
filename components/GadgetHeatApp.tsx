@@ -6,6 +6,7 @@ import { LocaleCode } from "@/data/locales";
 import { Product } from "@/data/products";
 import { applyMarketFilter } from "@/lib/filters";
 import { RAKUTEN_ACTIVE_MARKET_IDS } from "@/data/markets";
+import type { FetchStats } from "@/lib/fetchTopMovers";
 import { fmt, signed } from "@/lib/format";
 import TopBar from "./TopBar";
 import MarketDrawer from "./MarketDrawer";
@@ -18,9 +19,13 @@ import Methodology from "./Methodology";
 
 interface GadgetHeatAppProps {
   initialRakutenProducts?: Product[] | null;
+  initialStats?:           FetchStats | null;
 }
 
-export default function GadgetHeatApp({ initialRakutenProducts }: GadgetHeatAppProps) {
+export default function GadgetHeatApp({
+  initialRakutenProducts,
+  initialStats,
+}: GadgetHeatAppProps) {
   const [range, setRange] = useState<"week" | "month">("week");
   const [locale, setLocale] = useState<LocaleCode>("jp");
   const [marketId, setMarketId] = useState("all");
@@ -73,6 +78,9 @@ export default function GadgetHeatApp({ initialRakutenProducts }: GadgetHeatAppP
     initialRakutenProducts.length > 0 &&
     (marketId === "all" || RAKUTEN_ACTIVE_MARKET_IDS.includes(marketId));
 
+  // Number of products rendered this render (for debug meta)
+  const renderedCount = top3.length + rest.length;
+
   if (detail) {
     return (
       <div className="app">
@@ -124,6 +132,7 @@ export default function GadgetHeatApp({ initialRakutenProducts }: GadgetHeatAppP
         range={range}
         locale={locale}
         filteredCount={filtered.length}
+        stats={isLiveData ? (initialStats ?? null) : null}
       />
       <Ticker products={PRODUCTS} />
 
@@ -196,12 +205,37 @@ export default function GadgetHeatApp({ initialRakutenProducts }: GadgetHeatAppP
             <span>
               v0.2 Concept ·{" "}
               {isLiveData ? "Rakuten Live" : "Static Mock"} ·{" "}
-              {isLiveData && initialRakutenProducts
-                ? `${initialRakutenProducts.length} products · `
+              {isLiveData && initialStats
+                ? `${initialStats.finalCount} products · `
                 : ""}
               {today ?? "—"}
             </span>
           </div>
+
+          {/* Debug meta — shows pipeline stats to confirm counts match */}
+          {isLiveData && initialStats && (
+            <div
+              style={{
+                marginTop: 12,
+                fontFamily: "var(--font-mono)",
+                fontSize: 10,
+                color: "var(--ink-4)",
+                letterSpacing: "0.08em",
+                display: "flex",
+                gap: 16,
+                flexWrap: "wrap",
+              }}
+            >
+              <span>raw: {initialStats.rawItemsCount}</span>
+              <span>final: {initialStats.finalCount}</span>
+              <span>rendered: {renderedCount}</span>
+              {initialStats.failedRequests > 0 && (
+                <span style={{ color: "oklch(0.55 0.12 30)" }}>
+                  ⚠ {initialStats.failedRequests} failed
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </section>
     </div>

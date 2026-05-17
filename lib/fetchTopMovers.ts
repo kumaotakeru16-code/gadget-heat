@@ -1,29 +1,43 @@
 // Server-only: fetches and enriches top products across all active markets.
-// Data source: categoryFetch (multi-market keyword sweep) → Supabase delta enrichment.
-// Never import from client components.
+// Returns { products, stats } so every layer (page → Hero → colophon) uses
+// the same numbers — no mocks, no separate counts.
 
 import "server-only";
 
 import { fetchByCategories } from "./categoryFetch";
+import type { FetchStats, CategoryFetchResult } from "./categoryFetch";
 import { enrichWithDeltas } from "./snapshots";
 import type { Product } from "@/data/products";
 import type { LocaleCode } from "@/data/locales";
 
+export type { FetchStats };
+
+export interface TopMoversResult {
+  products: Product[];
+  stats:    FetchStats;
+}
+
 export async function fetchTopMovers(
   locale: LocaleCode = "jp"
-): Promise<Product[] | null> {
+): Promise<TopMoversResult | null> {
   try {
-    const products = await fetchByCategories(locale);
+    const { products, stats }: CategoryFetchResult = await fetchByCategories(locale);
     if (products.length === 0) return null;
 
-    // Enrich with yesterday's snapshot deltas if Supabase is configured.
-    // Falls back to the raw sorted list if Supabase is absent or unreachable.
+    // Enrich with Supabase snapshot deltas when configured.
+    // Falls back to raw products if Supabase is absent or unreachable.
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      const today = new Date().toISOString().slice(0, 10);
-      return enrichWithDeltas(products, today);
+      const today    = new Date().toISOString().slice(0, 10);
+      const enriched = await enrichWithDeltas(products, today);
+      // Recompute delta-dependent stats after enrichment
+      const totalReviewsDelta = enriched.reduce((s, p) => s + (p.reviewsDelta ?? 0), 0);
+      return {
+        products: enriched,
+        stats: { ...stats, totalReviewsDelta },
+      };
     }
 
-    return products;
+    return { products, stats };
   } catch {
     return null;
   }

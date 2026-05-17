@@ -1,10 +1,5 @@
 // Server-only: category-sweep product fetcher.
-// Replaces the old seed-only approach with per-market keyword expansion
-// and multi-page fetching, yielding 100-300 quality-filtered products.
-//
-// Quality thresholds (configurable, tighter than the low-signal filter in rakuten.ts):
-//   minReviewCount = 3   (vs 3 in isLowSignal — same floor, explicit)
-//   minRating      = 3.8 (vs 0 in isLowSignal — meaningful quality gate)
+// Returns products + FetchStats so the UI and Hero can show real numbers.
 
 import "server-only";
 
@@ -16,14 +11,37 @@ import type { LocaleCode } from "@/data/locales";
 export const DEFAULT_MIN_REVIEW_COUNT = 3;
 export const DEFAULT_MIN_RATING       = 3.8;
 const MAX_PRODUCTS                    = 300;
-const CONCURRENCY                     = 3;   // simultaneous Rakuten requests
-const INTER_REQUEST_DELAY_MS          = 300; // ms between requests per worker
-const RETRY_DELAY_MS                  = 1200;
+const CONCURRENCY                     = 2;    // keep within Rakuten rate limit
+const INTER_REQUEST_DELAY_MS          = 700;  // ms between requests per worker
+const RETRY_DELAY_MS                  = 2000; // wait on 429/502/503 before retry
+
+// ─── Shared types ─────────────────────────────────────────────────────────────
+
+/**
+ * Pipeline statistics returned alongside products.
+ * Covers every filtering stage so UI and debug API can show consistent numbers.
+ */
+export interface FetchStats {
+  rawItemsCount:           number; // items from API before quality filter (after Rakuten's own keyword+low-signal filters)
+  afterQualityFilterCount: number; // items passing minRating + minReviewCount (before cross-keyword dedupe)
+  afterDedupeCount:        number; // = finalCount
+  finalCount:              number; // products.length after sort+slice
+  successfulRequests:      number;
+  failedRequests:          number;
+  averageRating:           number; // mean rating across final products
+  totalReviewCount:        number; // sum of rawReviewCount across final products
+  totalReviewsDelta:       number; // sum of reviewsDelta (0 until snapshot deltas are enriched)
+}
+
+export interface CategoryFetchResult {
+  products: Product[];
+  stats:    FetchStats;
+}
 
 // ─── Concurrency helpers ──────────────────────────────────────────────────────
 
 /**
- * Worker-pool style concurrency limiter.
+ * Worker-pool concurrency limiter.
  * `limit` workers pick tasks from a shared queue; each waits `delayMs` between tasks.
  * Returns results in the same order as `tasks`.
  */
@@ -88,13 +106,12 @@ export interface CategoryFetchOptions {
 
 /**
  * Fetches products across all markets defined in MARKET_CATEGORIES.
- * Each market's keywords are swept with bounded concurrency.
- * Products are deduped by ID, quality-filtered, scored, and capped at MAX_PRODUCTS.
+ * Returns products (sorted, deduped, capped) and pipeline stats.
  */
 export async function fetchByCategories(
   locale: LocaleCode = "jp",
   opts: CategoryFetchOptions = {},
-): Promise<Product[]> {
+): Promise<CategoryFetchResult> {
   const minReviewCount = opts.minReviewCount ?? DEFAULT_MIN_REVIEW_COUNT;
   const minRating      = opts.minRating      ?? DEFAULT_MIN_RATING;
 
@@ -118,21 +135,51 @@ export async function fetchByCategories(
 
   const results = await withConcurrency(tasks, CONCURRENCY, INTER_REQUEST_DELAY_MS);
 
+  let rawItemsCount           = 0;
+  let afterQualityFilterCount = 0;
+  let successfulRequests      = 0;
+  let failedRequests          = 0;
+
   const seen     = new Set<string>();
   const products: Product[] = [];
 
   for (const result of results) {
-    if (result.status === "rejected") continue;
+    if (result.status === "rejected") {
+      failedRequests++;
+      continue;
+    }
+    successfulRequests++;
     for (const p of result.value) {
-      if (seen.has(p.id)) continue;
+      rawItemsCount++;
+      const passesQuality =
+        (p.rawReviewCount ?? 0) >= minReviewCount && p.rating >= minRating;
+      if (passesQuality) afterQualityFilterCount++;
+      if (!passesQuality || seen.has(p.id)) continue;
       seen.add(p.id);
-      if ((p.rawReviewCount ?? 0) < minReviewCount) continue;
-      if (p.rating < minRating) continue;
       products.push(p);
     }
   }
 
-  return products
-    .sort((a, b) => b.score - a.score)
-    .slice(0, MAX_PRODUCTS);
+  const sorted = products.sort((a, b) => b.score - a.score).slice(0, MAX_PRODUCTS);
+
+  const averageRating =
+    sorted.length > 0
+      ? sorted.reduce((s, p) => s + p.rating, 0) / sorted.length
+      : 0;
+  const totalReviewCount  = sorted.reduce((s, p) => s + (p.rawReviewCount ?? 0), 0);
+  const totalReviewsDelta = sorted.reduce((s, p) => s + (p.reviewsDelta ?? 0), 0);
+
+  const stats: FetchStats = {
+    rawItemsCount,
+    afterQualityFilterCount,
+    afterDedupeCount:  sorted.length,
+    finalCount:        sorted.length,
+    successfulRequests,
+    failedRequests,
+    averageRating:     Math.round(averageRating * 100) / 100,
+    totalReviewCount,
+    totalReviewsDelta,
+  };
+
+  return { products: sorted, stats };
 }

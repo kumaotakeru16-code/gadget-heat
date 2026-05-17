@@ -2,15 +2,16 @@
 
 import { Market } from "@/data/markets";
 import { LocaleCode } from "@/data/locales";
-import { Product } from "@/data/products";
-import { fmt, signed, arrowFor } from "@/lib/format";
+import type { FetchStats } from "@/lib/fetchTopMovers";
+import { fmt } from "@/lib/format";
 
 interface HeroProps {
-  market: Market;
-  subcat: string | null;
-  range: "week" | "month";
-  locale: LocaleCode;
+  market:        Market;
+  subcat:        string | null;
+  range:         "week" | "month";
+  locale:        LocaleCode;
   filteredCount: number;
+  stats?:        FetchStats | null;
 }
 
 export default function Hero({
@@ -19,6 +20,7 @@ export default function Hero({
   range,
   locale,
   filteredCount,
+  stats,
 }: HeroProps) {
   const isAll = market.id === "all";
   const eyebrowLabel = isAll
@@ -93,8 +95,9 @@ export default function Hero({
           <HeroStats
             range={range}
             locale={locale}
-            count={filteredCount}
+            filteredCount={filteredCount}
             market={market}
+            stats={stats ?? null}
           />
         </div>
       </div>
@@ -105,88 +108,110 @@ export default function Hero({
 function HeroStats({
   range,
   locale,
-  count,
+  filteredCount,
   market,
+  stats,
 }: {
-  range: "week" | "month";
-  locale: LocaleCode;
-  count: number;
-  market: Market;
+  range:         "week" | "month";
+  locale:        LocaleCode;
+  filteredCount: number;
+  market:        Market;
+  stats:         FetchStats | null;
 }) {
-  const isAll = market.id === "all";
-  const isWeek = range === "week";
-  const periodJP = isWeek ? "今週" : "今月";
-  const periodEN = isWeek ? "this week" : "this month";
-
-  const stats = isAll
-    ? {
-        monitored: 4286,
-        reviews: 1284,
-        trending: 86,
-        rating: 4.52,
-        reviewsPrev: 1102,
-        trendingPrev: 74,
-      }
-    : {
-        monitored: Math.max(60, count * 28),
-        reviews: Math.max(60, count * 36),
-        trending: Math.max(4, Math.round(count * 0.7)),
-        rating: 4.55,
-        reviewsPrev: Math.max(50, count * 30),
-        trendingPrev: Math.max(3, Math.round(count * 0.55)),
-      };
-
-  const reviewsDelta = stats.reviews - stats.reviewsPrev;
-  const trendingDelta = stats.trending - stats.trendingPrev;
-
   const t =
     locale === "jp"
       ? {
-          monitored: "監視中の製品",
-          reviews: `${periodJP}追加されたレビュー`,
-          trending: "今、伸びている製品",
-          rating: "評価点数の平均",
-          last: "先週比",
+          monitored:   "スキャン商品数",
+          reviews:     "合計レビュー数",
+          trending:    "今、伸びている製品",
+          rating:      "評価点数の平均",
+          creatorOnly: "Creator workflow only",
+          risingSet:   "rising set · 5.0 scale",
+          pending:     "スナップショット待ち",
         }
       : {
-          monitored: "products monitored",
-          reviews: `reviews added ${periodEN}`,
-          trending: "products trending now",
-          rating: "average rating",
-          last: "vs prev",
+          monitored:   "products scanned",
+          reviews:     "total reviews",
+          trending:    "products trending now",
+          rating:      "average rating",
+          creatorOnly: "creator workflow only",
+          risingSet:   "on rising set · 5.0 scale",
+          pending:     "snapshot pending",
         };
+
+  // ── Live stats from the pipeline ────────────────────────────────────────
+  if (stats) {
+    const hasDelta = stats.totalReviewsDelta > 0;
+
+    return (
+      <div className="hero-stats">
+        <div className="hstat">
+          <div className="hstat-num">{fmt(stats.rawItemsCount)}</div>
+          <div className="hstat-label">{t.monitored}</div>
+          <div className="hstat-delta">
+            {stats.failedRequests > 0
+              ? `${stats.failedRequests} ${locale === "jp" ? "件取得失敗" : "failed"}`
+              : t.creatorOnly}
+          </div>
+        </div>
+        <div className="hstat">
+          <div className="hstat-num">
+            <span className="pos">+{fmt(stats.totalReviewCount)}</span>
+          </div>
+          <div className="hstat-label">{t.reviews}</div>
+          <div className={`hstat-delta ${hasDelta ? "up arrow-up" : ""}`}>
+            {hasDelta
+              ? `+${fmt(stats.totalReviewsDelta)} vs prev`
+              : t.pending}
+          </div>
+        </div>
+        <div className="hstat">
+          <div className="hstat-num">{stats.finalCount}</div>
+          <div className="hstat-label">{t.trending}</div>
+          <div className="hstat-delta">
+            {market.id === "all" ? "all markets" : market.short}
+          </div>
+        </div>
+        <div className="hstat">
+          <div className="hstat-num">{stats.averageRating.toFixed(2)}</div>
+          <div className="hstat-label">{t.rating}</div>
+          <div className="hstat-delta">{t.risingSet}</div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Fallback (static / market-filtered view without stats) ───────────────
+  const fallback = {
+    monitored: Math.max(60, filteredCount * 28),
+    reviews:   Math.max(60, filteredCount * 36),
+    trending:  Math.max(4, Math.round(filteredCount * 0.7)),
+    rating:    4.55,
+  };
 
   return (
     <div className="hero-stats">
       <div className="hstat">
-        <div className="hstat-num">{fmt(stats.monitored)}</div>
+        <div className="hstat-num">{fmt(fallback.monitored)}</div>
         <div className="hstat-label">{t.monitored}</div>
-        <div className="hstat-delta">Creator workflow only</div>
+        <div className="hstat-delta">{t.creatorOnly}</div>
       </div>
       <div className="hstat">
         <div className="hstat-num">
-          <span className="pos">+{fmt(stats.reviews)}</span>
+          <span className="pos">+{fmt(fallback.reviews)}</span>
         </div>
         <div className="hstat-label">{t.reviews}</div>
-        <div
-          className={`hstat-delta ${reviewsDelta >= 0 ? "up arrow-up" : "down arrow-down"}`}
-        >
-          {signed(reviewsDelta)} {t.last}
-        </div>
+        <div className="hstat-delta">—</div>
       </div>
       <div className="hstat">
-        <div className="hstat-num">{stats.trending}</div>
+        <div className="hstat-num">{fallback.trending}</div>
         <div className="hstat-label">{t.trending}</div>
-        <div
-          className={`hstat-delta ${trendingDelta >= 0 ? "up arrow-up" : "down arrow-down"}`}
-        >
-          {signed(trendingDelta)} vs prev
-        </div>
+        <div className="hstat-delta">—</div>
       </div>
       <div className="hstat">
-        <div className="hstat-num">{stats.rating.toFixed(2)}</div>
+        <div className="hstat-num">{fallback.rating.toFixed(2)}</div>
         <div className="hstat-label">{t.rating}</div>
-        <div className="hstat-delta">on rising set · 5.0 scale</div>
+        <div className="hstat-delta">{t.risingSet}</div>
       </div>
     </div>
   );

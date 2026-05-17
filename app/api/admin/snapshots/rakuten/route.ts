@@ -21,17 +21,17 @@ export async function POST(req: NextRequest) {
   const auth = req.headers.get("authorization") ?? "";
   if (auth !== `Bearer ${secret}`) return unauthorized();
 
-  const products = await fetchTopMovers("jp");
-  if (!products || products.length === 0) {
+  const result = await fetchTopMovers("jp");
+  if (!result || result.products.length === 0) {
     return NextResponse.json({ error: "No products fetched" }, { status: 502 });
   }
 
-  const { saved, errors } = await saveProductSnapshots(products);
+  const { saved, errors } = await saveProductSnapshots(result.products);
 
   return NextResponse.json({
     ok:      errors.length === 0,
     saved,
-    total:   products.length,
+    total:   result.products.length,
     errors,
     date:    new Date().toISOString().slice(0, 10),
   });
