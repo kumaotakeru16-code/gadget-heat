@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/admin/snapshots/rakuten/cron?secret=${ADMIN_SECRET}",
+      "schedule": "0 15 * * *"
+    }
+  ]
+}
