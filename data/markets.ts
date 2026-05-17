@@ -32,6 +32,15 @@ export const MARKETS: Market[] = [
     status: "active",
   },
   {
+    id: "camera",
+    name: "Creator Camera",
+    short: "CAMERA",
+    tagline: "Shoot & Create",
+    blurb: "ミラーレス、Vlog、アクション。クリエイターが選ぶカメラ市場。",
+    subcats: ["Mirrorless", "Vlog Camera", "Action Camera", "Compact Camera", "Cinema Camera"],
+    status: "active",
+  },
+  {
     id: "audio",
     name: "Creator Audio",
     short: "AUDIO",
@@ -40,10 +49,11 @@ export const MARKETS: Market[] = [
       "マイク、オーディオインターフェース、撮影現場の音を捉える市場。",
     subcats: [
       "Wireless Mic",
-      "Camera Microphone",
       "Shotgun Mic",
       "Lavalier Mic",
+      "Camera Microphone",
       "Audio Interface",
+      "Streaming Mixer",
     ],
     status: "active",
   },
@@ -70,7 +80,7 @@ export const MARKETS: Market[] = [
       "Creator Laptop",
       "Mini PC",
       "Thunderbolt Dock",
-      "Capture Device",
+      "eGPU",
     ],
     status: "experimental",
   },
@@ -81,7 +91,7 @@ export const MARKETS: Market[] = [
     tagline: "Hold & Move",
     blurb:
       "カメラを支え、保持し、動かす。三脚・ジンバル・ケージ・リグの市場。",
-    subcats: ["Tripod", "Gimbal", "Grip", "Cage", "Rig", "Mount"],
+    subcats: ["Tripod", "Gimbal", "Grip", "Cage", "Rig", "Slider"],
     status: "active",
   },
   {
@@ -91,7 +101,7 @@ export const MARKETS: Market[] = [
     tagline: "Keep Rolling",
     blurb:
       "撮影を止めないための電源系。バッテリー、チャージャー、カプラー。",
-    subcats: ["Battery", "Charger", "Coupler", "Power Bank"],
+    subcats: ["Battery", "Charger", "DC Coupler", "Power Bank", "Battery Grip"],
     status: "experimental",
   },
   {
@@ -100,7 +110,7 @@ export const MARKETS: Market[] = [
     short: "LIGHTING",
     tagline: "Shape the Light",
     blurb: "LEDからオンカメラライトまで、光をコントロールする市場。",
-    subcats: ["LED Light", "On-Camera Light", "Light Stand", "Video Light"],
+    subcats: ["LED Light", "On-Camera Light", "Ring Light", "RGB Light", "Light Stand"],
     status: "experimental",
   },
   {

@@ -34,8 +34,10 @@ export default function GadgetHeatApp({
   const [detail, setDetail] = useState<Product | null>(null);
   const [showSpark, setShowSpark] = useState(true);
   const [today, setToday] = useState<string | null>(null);
+  const [isDebug, setIsDebug] = useState(false);
   useEffect(() => {
     setToday(new Date().toLocaleDateString("en-CA"));
+    setIsDebug(new URLSearchParams(window.location.search).get("debug") === "1");
   }, []);
 
   const currentMarket = useMemo(() => marketById(marketId), [marketId]);
@@ -98,6 +100,7 @@ export default function GadgetHeatApp({
           marketId={marketId}
           subcat={subcat}
           onPick={handlePick}
+          liveProducts={initialRakutenProducts}
         />
         <TrendDetail
           item={detail}
@@ -213,7 +216,7 @@ export default function GadgetHeatApp({
           </div>
 
           {/* Debug meta — shows pipeline stats to confirm counts match */}
-          {isLiveData && initialStats && (
+          {isDebug && isLiveData && initialStats && (
             <div
               style={{
                 marginTop: 12,

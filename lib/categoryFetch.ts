@@ -19,8 +19,8 @@ const INTER_REQUEST_DELAY_MS = 700;
 const RETRY_DELAY_MS         = 2000;
 
 // Diversity parameters — prevent any single market or category from dominating.
-const DIVERSITY_MAX_PER_CAT    = 4;   // max per (market:cat) pair inside the lead zone
-const DIVERSITY_MAX_PER_MARKET = 20;  // max per market inside the lead zone
+const DIVERSITY_MAX_PER_CAT    = 3;   // max per (market:cat) pair inside the lead zone
+const DIVERSITY_MAX_PER_MARKET = 12;  // max per market inside the lead zone
 const DIVERSITY_LEAD_SIZE      = 200; // products covered by diversity cap (score-sorted)
 
 // ─── Shared types ──────────────────────────────────────────────────────────────

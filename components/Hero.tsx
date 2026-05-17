@@ -148,11 +148,7 @@ function HeroStats({
         <div className="hstat">
           <div className="hstat-num">{fmt(stats.rawItemsCount)}</div>
           <div className="hstat-label">{t.monitored}</div>
-          <div className="hstat-delta">
-            {stats.failedRequests > 0
-              ? `${stats.failedRequests} ${locale === "jp" ? "件取得失敗" : "failed"}`
-              : t.creatorOnly}
-          </div>
+          <div className="hstat-delta">{t.creatorOnly}</div>
         </div>
         <div className="hstat">
           <div className="hstat-num">
@@ -160,9 +156,7 @@ function HeroStats({
           </div>
           <div className="hstat-label">{t.reviews}</div>
           <div className={`hstat-delta ${hasDelta ? "up arrow-up" : ""}`}>
-            {hasDelta
-              ? `+${fmt(stats.totalReviewsDelta)} vs prev`
-              : t.pending}
+            {hasDelta ? `+${fmt(stats.totalReviewsDelta)} vs prev` : "—"}
           </div>
         </div>
         <div className="hstat">

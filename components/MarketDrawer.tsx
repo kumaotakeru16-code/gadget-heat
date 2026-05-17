@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { MARKETS, PRODUCTS } from "@/data";
+import type { Product } from "@/data/products";
 
 const ACTIVE_MARKETS       = MARKETS.filter((m) => m.id !== "all" && m.status === "active");
 const EXPERIMENTAL_MARKETS = MARKETS.filter((m) => m.status === "experimental");
@@ -13,6 +14,7 @@ interface MarketDrawerProps {
   marketId: string;
   subcat: string | null;
   onPick: (marketId: string, subcat: string | null) => void;
+  liveProducts?: Product[] | null;
 }
 
 export default function MarketDrawer({
@@ -21,6 +23,7 @@ export default function MarketDrawer({
   marketId,
   subcat,
   onPick,
+  liveProducts,
 }: MarketDrawerProps) {
   useEffect(() => {
     if (!open) return;
@@ -32,13 +35,14 @@ export default function MarketDrawer({
   }, [open, onClose]);
 
   const counts = useMemo(() => {
+    const src = liveProducts && liveProducts.length > 0 ? liveProducts : PRODUCTS;
     const c: Record<string, number> = {};
     for (const m of MARKETS) {
-      c[m.id] = PRODUCTS.filter((p) => p.market === m.id).length;
+      c[m.id] = src.filter((p) => p.market === m.id).length;
     }
-    c.all = PRODUCTS.length;
+    c.all = src.length;
     return c;
-  }, []);
+  }, [liveProducts]);
 
   function MarketRow({ m, clickable = true }: { m: typeof MARKETS[0]; clickable?: boolean }) {
     const isActive = marketId === m.id && !subcat;

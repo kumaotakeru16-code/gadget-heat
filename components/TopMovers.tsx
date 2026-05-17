@@ -128,6 +128,9 @@ function Mover1({
           <div className="mover-cat">
             {item.cat} · {item.brand}
           </div>
+          <div className="heat-chips">
+            <span className="hchip hot">▲ HOT</span>
+          </div>
           <h3 className="mover-name">{item.name}</h3>
         </div>
 
@@ -138,6 +141,14 @@ function Mover1({
               <div className="m1m-score">{item.score}</div>
               <div className="m1m-lab">Heat</div>
             </div>
+            <Sparkline
+              data={item.spark}
+              color="oklch(0.62 0.13 50)"
+              width={80}
+              height={26}
+              fill={false}
+              strokeWidth={1.2}
+            />
             <div className={`m1m-pct ${item.scoreChg < 0 ? "down" : ""} ${arrowFor(item.scoreChg)}`}>
               {signed(item.scoreChg, { fixed: 1 })}%
             </div>
@@ -304,6 +315,11 @@ function MoverSide({
       <div className="mover-body">
         <div>
           <div className="mover-cat">{item.cat}</div>
+          <div className="heat-chips">
+            <span className={`hchip ${rank === 2 ? "rising" : "watch"}`}>
+              {rank === 2 ? "↑ RISING" : "◎ WATCH"}
+            </span>
+          </div>
           <h3 className="mover-name">{item.name}</h3>
         </div>
         <div className="md-trend">

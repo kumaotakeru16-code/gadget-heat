@@ -663,6 +663,19 @@ body::before {
 /* Mobile-only compact block for mover-1 (hidden on desktop, activated at ≤720px) */
 .mover-1-mob { display: none; }
 
+/* Heat status chips — HOT / RISING / WATCH */
+.heat-chips { display: flex; gap: 6px; align-items: center; margin: 2px 0; }
+.hchip {
+  display: inline-flex; align-items: center;
+  font-family: var(--font-mono); font-size: 9px;
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em;
+  padding: 2px 7px; border-radius: 3px;
+  border: 1px solid currentColor; white-space: nowrap;
+}
+.hchip.hot    { color: var(--ember); background: color-mix(in oklch, var(--ember) 10%, transparent); }
+.hchip.rising { color: var(--moss);  background: color-mix(in oklch, var(--moss)  10%, transparent); }
+.hchip.watch  { color: var(--ink-3); background: var(--paper-2); border-color: var(--rule); }
+
 /* ─────────────────────────────────────────────
    Compact Ranking List
 ───────────────────────────────────────────── */
@@ -978,7 +991,8 @@ body::before {
   /* activate mobile compact block */
   .mover-1-mob { display: flex; flex-direction: column; gap: 6px; margin-top: auto; }
   .m1m-trend {
-    display: flex; justify-content: space-between; align-items: center;
+    display: grid; grid-template-columns: auto 1fr auto;
+    align-items: center; gap: 8px;
     border-top: 1px solid var(--rule-2); border-bottom: 1px solid var(--rule-2);
     padding: 6px 0;
   }
@@ -1017,6 +1031,8 @@ body::before {
   .mover-md .prod-img-inner   { padding: 10%; }
   .mover-md .mover-body       { padding: 14px 16px; gap: 8px; }
   .mover-md .mover-cat        { font-size: 9.5px; letter-spacing: 0.12em; }
+  .mover-md .heat-chips       { margin: 1px 0; }
+  .mover-md .hchip            { font-size: 8px; padding: 1.5px 6px; }
   .mover-md .mover-name       { font-size: 15px; line-height: 1.2; -webkit-line-clamp: 2; }
   .mover-md .md-trend {
     grid-template-columns: auto auto; justify-content: space-between; padding: 8px 0; gap: 8px;
