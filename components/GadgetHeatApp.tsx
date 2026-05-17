@@ -71,7 +71,7 @@ export default function GadgetHeatApp({
   );
 
   const top3 = filtered.slice(0, 3);
-  const rest = filtered.slice(3, 23); // max 20 in CompactRanking; "load more" to come
+  const rest = filtered.slice(3, 43); // up to 40 in CompactRanking
 
   const isLiveData =
     !!initialRakutenProducts &&

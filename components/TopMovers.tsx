@@ -131,6 +131,43 @@ function Mover1({
           <h3 className="mover-name">{item.name}</h3>
         </div>
 
+        {/* Mobile-only compact block: shown at ≤720px instead of heavy desktop sections */}
+        <div className="mover-1-mob">
+          <div className="m1m-trend">
+            <div>
+              <div className="m1m-score">{item.score}</div>
+              <div className="m1m-lab">Heat</div>
+            </div>
+            <div className={`m1m-pct ${item.scoreChg < 0 ? "down" : ""} ${arrowFor(item.scoreChg)}`}>
+              {signed(item.scoreChg, { fixed: 1 })}%
+            </div>
+          </div>
+          <div className="m1m-stats">
+            <span>
+              <span className="m1m-l">
+                {item.rawReviewCount !== undefined && item.reviewsDelta === 0 ? "Reviews" : "Δ Reviews"}
+              </span>
+              <span className="m1m-v">
+                {item.rawReviewCount !== undefined && item.reviewsDelta === 0
+                  ? item.rawReviewCount
+                  : `+${item.reviewsDelta}`}
+              </span>
+            </span>
+            <span>
+              <span className="m1m-l">Rating</span>
+              <span className="m1m-v">{item.rating.toFixed(1)}</span>
+            </span>
+          </div>
+          <div className="m1m-foot">
+            {item.priceChg < 0 ? (
+              <span className="m1m-deal">Deal · {item.priceChg}%</span>
+            ) : (
+              <span style={{ color: "var(--ink-4)" }}>No deal</span>
+            )}
+            <span>→</span>
+          </div>
+        </div>
+
         <div className="trend-block">
           <div className="trend-score-num">
             <span className="label">Trend Score</span>

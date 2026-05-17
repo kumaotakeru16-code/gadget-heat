@@ -8,29 +8,41 @@ import { MARKET_CATEGORIES } from "@/data/marketCategories";
 import type { Product } from "@/data/products";
 import type { LocaleCode } from "@/data/locales";
 
+// Soft-penalty onset thresholds — exported for debug module reference.
+// These are NOT hard gates: items below them are kept with a reduced score.
 export const DEFAULT_MIN_REVIEW_COUNT = 3;
 export const DEFAULT_MIN_RATING       = 3.8;
-const MAX_PRODUCTS                    = 300;
-const CONCURRENCY                     = 2;    // keep within Rakuten rate limit
-const INTER_REQUEST_DELAY_MS          = 700;  // ms between requests per worker
-const RETRY_DELAY_MS                  = 2000; // wait on 429/502/503 before retry
 
-// ─── Shared types ─────────────────────────────────────────────────────────────
+const MAX_PRODUCTS           = 300;
+const CONCURRENCY            = 2;   // keep within Rakuten rate limit
+const INTER_REQUEST_DELAY_MS = 700;
+const RETRY_DELAY_MS         = 2000;
+
+// Diversity parameters — prevent any single market or category from dominating.
+const DIVERSITY_MAX_PER_CAT    = 4;   // max per (market:cat) pair inside the lead zone
+const DIVERSITY_MAX_PER_MARKET = 20;  // max per market inside the lead zone
+const DIVERSITY_LEAD_SIZE      = 200; // products covered by diversity cap (score-sorted)
+
+// ─── Shared types ──────────────────────────────────────────────────────────────
 
 /**
  * Pipeline statistics returned alongside products.
- * Covers every filtering stage so UI and debug API can show consistent numbers.
+ * Every filtering stage is tracked so the UI and debug API show consistent numbers.
  */
 export interface FetchStats {
-  rawItemsCount:           number; // items from API before quality filter (after Rakuten's own keyword+low-signal filters)
-  afterQualityFilterCount: number; // items passing minRating + minReviewCount (before cross-keyword dedupe)
-  afterDedupeCount:        number; // = finalCount
-  finalCount:              number; // products.length after sort+slice
+  rawItemsCount:           number; // from source before any in-app filtering
+  removedByHardExclude:    number; // reviewCount=0 or rating=0 — no usable signal
+  penalizedLowSignal:      number; // kept but score-reduced (low reviews or low rating)
+  afterQualityFilterCount: number; // compat alias: rawItemsCount - removedByHardExclude
+  afterDedupeCount:        number; // unique items before diversity reranking
+  diversityCollapsed:      number; // items shifted back by diversity cap (not discarded)
+  diversityAdjustedCount:  number; // = finalCount, for debug clarity
+  finalCount:              number;
   successfulRequests:      number;
   failedRequests:          number;
-  averageRating:           number; // mean rating across final products
-  totalReviewCount:        number; // sum of rawReviewCount across final products
-  totalReviewsDelta:       number; // sum of reviewsDelta (0 until snapshot deltas are enriched)
+  averageRating:           number;
+  totalReviewCount:        number;
+  totalReviewsDelta:       number;
 }
 
 export interface CategoryFetchResult {
@@ -38,13 +50,8 @@ export interface CategoryFetchResult {
   stats:    FetchStats;
 }
 
-// ─── Concurrency helpers ──────────────────────────────────────────────────────
+// ─── Concurrency helpers ───────────────────────────────────────────────────────
 
-/**
- * Worker-pool concurrency limiter.
- * `limit` workers pick tasks from a shared queue; each waits `delayMs` between tasks.
- * Returns results in the same order as `tasks`.
- */
 export async function withConcurrency<T>(
   tasks: Array<() => Promise<T>>,
   limit: number,
@@ -71,9 +78,6 @@ export async function withConcurrency<T>(
   return results;
 }
 
-/**
- * Retries `fn` once on HTTP 429 / 502 / 503 after `retryDelayMs`.
- */
 export async function withRetry<T>(
   fn: () => Promise<T>,
   retries = 1,
@@ -97,24 +101,91 @@ export async function withRetry<T>(
   }
 }
 
-// ─── Fetch ────────────────────────────────────────────────────────────────────
+// ─── Signal quality helpers ────────────────────────────────────────────────────
+
+// Zero-data items: no reviewCount or no rating means we have nothing to score.
+function isHardExclude(p: Product): boolean {
+  return (p.rawReviewCount ?? 0) === 0 || p.rating === 0;
+}
+
+// Multiplicative penalty for items below quality thresholds.
+// Compounds across both axes so genuinely weak items sink without being dropped.
+function softPenaltyFactor(p: Product): number {
+  let m = 1.0;
+  const rc = p.rawReviewCount ?? 0;
+  const r  = p.rating;
+
+  if      (rc <  3) m *= 0.55;
+  else if (rc <  8) m *= 0.80;
+  else if (rc < 15) m *= 0.92;
+
+  if      (r < 3.0) m *= 0.40;
+  else if (r < 3.5) m *= 0.65;
+  else if (r < 3.8) m *= 0.82;
+
+  return m;
+}
+
+// ─── Diversity reranking ───────────────────────────────────────────────────────
+
+/**
+ * Prevents the same market or category from flooding the top positions.
+ * Items that exceed the cap are deferred immediately after the lead zone —
+ * they are still in the pool and still visible, just not consecutive.
+ */
+export function applyDiversity<T extends { market: string; cat: string }>(
+  sorted: T[],
+  opts: { maxPerCat?: number; maxPerMarket?: number; leadSize?: number } = {},
+): { result: T[]; collapsedCount: number } {
+  const {
+    maxPerCat    = DIVERSITY_MAX_PER_CAT,
+    maxPerMarket = DIVERSITY_MAX_PER_MARKET,
+    leadSize     = DIVERSITY_LEAD_SIZE,
+  } = opts;
+
+  const catCounts = new Map<string, number>();
+  const mktCounts = new Map<string, number>();
+  const lead:     T[] = [];
+  const deferred: T[] = [];
+  let collapsedCount = 0;
+
+  for (const p of sorted.slice(0, leadSize)) {
+    const ck = `${p.market}:${p.cat}`;
+    const cc = catCounts.get(ck)       ?? 0;
+    const mc = mktCounts.get(p.market) ?? 0;
+
+    if (cc < maxPerCat && mc < maxPerMarket) {
+      catCounts.set(ck,       cc + 1);
+      mktCounts.set(p.market, mc + 1);
+      lead.push(p);
+    } else {
+      deferred.push(p);
+      collapsedCount++;
+    }
+  }
+
+  return {
+    result: [...lead, ...deferred, ...sorted.slice(leadSize)],
+    collapsedCount,
+  };
+}
+
+// ─── Fetch ─────────────────────────────────────────────────────────────────────
 
 export interface CategoryFetchOptions {
+  // Kept for API compat; production pipeline uses fixed soft-penalty thresholds.
   minReviewCount?: number;
   minRating?:      number;
 }
 
 /**
  * Fetches products across all markets defined in MARKET_CATEGORIES.
- * Returns products (sorted, deduped, capped) and pipeline stats.
+ * Returns a diversity-reranked, soft-penalty-scored pool + pipeline stats.
  */
 export async function fetchByCategories(
   locale: LocaleCode = "jp",
-  opts: CategoryFetchOptions = {},
+  _opts: CategoryFetchOptions = {},
 ): Promise<CategoryFetchResult> {
-  const minReviewCount = opts.minReviewCount ?? DEFAULT_MIN_REVIEW_COUNT;
-  const minRating      = opts.minRating      ?? DEFAULT_MIN_RATING;
-
   const source = sourceForLocale(locale);
 
   const calls: { marketId: string; keyword: string; cat: string; page: number }[] = [];
@@ -135,10 +206,11 @@ export async function fetchByCategories(
 
   const results = await withConcurrency(tasks, CONCURRENCY, INTER_REQUEST_DELAY_MS);
 
-  let rawItemsCount           = 0;
-  let afterQualityFilterCount = 0;
-  let successfulRequests      = 0;
-  let failedRequests          = 0;
+  let rawItemsCount        = 0;
+  let removedByHardExclude = 0;
+  let penalizedLowSignal   = 0;
+  let successfulRequests   = 0;
+  let failedRequests       = 0;
 
   const seen     = new Set<string>();
   const products: Product[] = [];
@@ -149,37 +221,54 @@ export async function fetchByCategories(
       continue;
     }
     successfulRequests++;
+
     for (const p of result.value) {
       rawItemsCount++;
-      const passesQuality =
-        (p.rawReviewCount ?? 0) >= minReviewCount && p.rating >= minRating;
-      if (passesQuality) afterQualityFilterCount++;
-      if (!passesQuality || seen.has(p.id)) continue;
+
+      if (isHardExclude(p)) {
+        removedByHardExclude++;
+        continue;
+      }
+
+      if (seen.has(p.id)) continue;
       seen.add(p.id);
-      products.push(p);
+
+      const penalty = softPenaltyFactor(p);
+      if (penalty < 1.0) {
+        penalizedLowSignal++;
+        products.push({ ...p, score: Math.round(p.score * penalty) });
+      } else {
+        products.push(p);
+      }
     }
   }
 
-  const sorted = products.sort((a, b) => b.score - a.score).slice(0, MAX_PRODUCTS);
+  const sorted = [...products].sort((a, b) => b.score - a.score);
 
-  const averageRating =
-    sorted.length > 0
-      ? sorted.reduce((s, p) => s + p.rating, 0) / sorted.length
-      : 0;
-  const totalReviewCount  = sorted.reduce((s, p) => s + (p.rawReviewCount ?? 0), 0);
-  const totalReviewsDelta = sorted.reduce((s, p) => s + (p.reviewsDelta ?? 0), 0);
+  const { result: diversified, collapsedCount } = applyDiversity(sorted);
+  const final = diversified.slice(0, MAX_PRODUCTS);
+
+  const averageRating = final.length > 0
+    ? final.reduce((s, p) => s + p.rating, 0) / final.length
+    : 0;
+  const totalReviewCount  = final.reduce((s, p) => s + (p.rawReviewCount ?? 0), 0);
+  const totalReviewsDelta = final.reduce((s, p) => s + (p.reviewsDelta    ?? 0), 0);
 
   const stats: FetchStats = {
     rawItemsCount,
-    afterQualityFilterCount,
-    afterDedupeCount:  sorted.length,
-    finalCount:        sorted.length,
+    removedByHardExclude,
+    penalizedLowSignal,
+    afterQualityFilterCount: rawItemsCount - removedByHardExclude,
+    afterDedupeCount:        sorted.length,
+    diversityCollapsed:      collapsedCount,
+    diversityAdjustedCount:  final.length,
+    finalCount:              final.length,
     successfulRequests,
     failedRequests,
-    averageRating:     Math.round(averageRating * 100) / 100,
+    averageRating:           Math.round(averageRating * 100) / 100,
     totalReviewCount,
     totalReviewsDelta,
   };
 
-  return { products: sorted, stats };
+  return { products: final, stats };
 }

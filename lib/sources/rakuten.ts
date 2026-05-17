@@ -39,11 +39,12 @@ export const rakutenSource: MarketProductSource = {
 
   async searchProducts(params: SourceSearchParams): Promise<Product[]> {
     const result = await searchRakuten({
-      keyword: params.keyword,
-      market:  params.market,
-      cat:     params.cat,
-      hits:    params.hits ?? 10,
-      page:    params.page  ?? 1,
+      keyword:          params.keyword,
+      market:           params.market,
+      cat:              params.cat,
+      hits:             params.hits ?? 10,
+      page:             params.page  ?? 1,
+      includeLowSignal: true, // hard-exclude and soft-penalty happen in categoryFetch
     });
     return result.items.map(toProduct);
   },
