@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/admin/snapshots/rakuten/cron?secret=${ADMIN_SECRET}",
+      "path": "/api/admin/snapshots/rakuten/cron?secret=$gadgetheat-super-secret-2026",
       "schedule": "0 15 * * *"
     }
   ]
