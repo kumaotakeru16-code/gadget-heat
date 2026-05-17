@@ -55,7 +55,7 @@ function Mover1({
         className="mover-image"
         style={{ position: "relative", overflow: "hidden", background: warmBg }}
       >
-        {/* Blurred fill layer — colors the background without cropping the product */}
+        {/* Blurred fill layer — fills frame with warm color without cropping the product */}
         {heroUrl && (
           <div
             aria-hidden
@@ -63,16 +63,16 @@ function Mover1({
               position:           "absolute",
               inset:              0,
               backgroundImage:    `url(${heroUrl})`,
-              backgroundSize:     "160%",
+              backgroundSize:     "180%",
               backgroundPosition: "center",
-              filter:             "blur(18px) saturate(0.5) brightness(0.9)",
-              transform:          "scale(1.05)",
-              opacity:            0.55,
+              filter:             "blur(22px) saturate(0.45) brightness(0.85)",
+              transform:          "scale(1.06)",
+              opacity:            0.65,
             }}
           />
         )}
 
-        {/* Product — contained so nothing gets cropped */}
+        {/* Product — contained, tight padding so it fills the hero with presence */}
         {heroUrl ? (
           <img
             src={heroUrl}
@@ -84,7 +84,7 @@ function Mover1({
               width:      "100%",
               height:     "100%",
               objectFit:  "contain",
-              padding:    "8%",
+              padding:    "4% 4% 6%",
             }}
           />
         ) : (
