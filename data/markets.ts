@@ -133,9 +133,12 @@ export const ALL_MARKET_IDS = MARKETS
   .filter((m) => m.id !== "all" && m.status !== "later")
   .map((m) => m.id);
 
-// Markets with validated live data quality in the JP MVP (Rakuten source).
-// Expand when additional markets are validated.
-export const RAKUTEN_ACTIVE_MARKET_IDS = ["audio", "support"];
+// Markets served by live Rakuten data.
+// Derived from MARKETS so adding a new non-"later" market automatically
+// includes it in the live data sweep (categoryFetch).
+export const RAKUTEN_ACTIVE_MARKET_IDS = MARKETS
+  .filter((m) => m.id !== "all" && m.status !== "later")
+  .map((m) => m.id);
 
 export function marketById(id: string): Market {
   return MARKETS.find((m) => m.id === id) ?? ALL_MARKET;
