@@ -66,7 +66,7 @@ export default function GadgetHeatApp({ initialRakutenProducts }: GadgetHeatAppP
   );
 
   const top3 = filtered.slice(0, 3);
-  const rest = filtered.slice(3);
+  const rest = filtered.slice(3, 23); // max 20 in CompactRanking; "load more" to come
 
   const isLiveData =
     !!initialRakutenProducts &&
@@ -137,7 +137,12 @@ export default function GadgetHeatApp({ initialRakutenProducts }: GadgetHeatAppP
               {range === "week" ? "WEEK 20 · 2026" : "MAY · 2026"}
               {" · "}
               {filtered.length}{" "}
-              {locale === "jp" ? "製品を監視中" : "products tracked"}
+              {locale === "jp" ? "製品を監視中" : "products monitored"}
+              {isLiveData && initialRakutenProducts && initialRakutenProducts.length !== filtered.length && (
+                <span style={{ marginLeft: "0.4em", opacity: 0.45 }}>
+                  ({initialRakutenProducts.length} total)
+                </span>
+              )}
               {isLiveData && (
                 <span style={{ marginLeft: "0.5em", opacity: 0.55 }}>· Live</span>
               )}
@@ -191,6 +196,9 @@ export default function GadgetHeatApp({ initialRakutenProducts }: GadgetHeatAppP
             <span>
               v0.2 Concept ·{" "}
               {isLiveData ? "Rakuten Live" : "Static Mock"} ·{" "}
+              {isLiveData && initialRakutenProducts
+                ? `${initialRakutenProducts.length} products · `
+                : ""}
               {today ?? "—"}
             </span>
           </div>
