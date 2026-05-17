@@ -18,10 +18,11 @@ export interface Product {
   aux: string[];
   spark: number[];
   color: string;
-  // Present on Rakuten-sourced products; absent on static mock data
+  // Present on live-sourced products; absent (undefined) on static mock data
   imageUrl?: string;
   itemUrl?: string;
   rawReviewCount?: number;
+  source?: "rakuten" | "bestbuy" | "static";
 }
 
 function spark(endVal: number, vol = 0.18): number[] {

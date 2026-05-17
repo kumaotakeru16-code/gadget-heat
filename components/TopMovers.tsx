@@ -46,102 +46,85 @@ function Mover1({
   range: "week" | "month";
   onOpen: (item: Product) => void;
 }) {
-  // Override check: curated image > Rakuten image > editorial fallback.
-  // #1 card shows Rakuten image ONLY if a curated override is available.
-  // Without an override, use the editorial score/spark layout instead.
-  const { url: displayUrl, isOverride } = resolveImageUrl(item.name, item.imageUrl);
-  const showImage = isOverride && !!displayUrl;
+  // Image priority: curated override > Rakuten URL > warm color placeholder.
+  // The image is always treated as a hero background — never as a product catalog photo.
+  // Dimming + gradient overlays absorb any promotional noise (SALE banners etc.)
+  // without hard-cropping or filtering the source.
+  const { url: heroUrl } = resolveImageUrl(item.name, item.imageUrl);
+  const warmBg = item.color || "oklch(0.88 0.03 70)";
 
   return (
     <article className="mover mover-1" onClick={() => onOpen(item)}>
-      {showImage ? (
-        <div className="mover-image">
-          <ProductImage
-            cat={item.cat}
-            brand={item.brand}
-            color={item.color}
-            src={displayUrl}
-            blurBackdrop
-          />
-          <span className="mover-rank">
-            No. 01 / {range === "week" ? "Week 20" : "May 2026"}
-          </span>
-          <span className="mover-market-tag">
-            {marketById(item.market).short}
-          </span>
-        </div>
-      ) : (
-        // Editorial fallback: no curated image → lead with score + spark + brand typography
-        <div
-          className="mover-image"
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "0.5rem",
-            background: item.color,
-            padding: "2rem 1.5rem",
-          }}
-        >
-          <div style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 10,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            opacity: 0.5,
-          }}>
-            Trend Score
-          </div>
-          <div style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: "clamp(4.5rem, 9vw, 8rem)",
-            lineHeight: 1,
-            color: "var(--ink-1)",
-            letterSpacing: "-0.02em",
-          }}>
-            {item.score}
-          </div>
-          <Sparkline
-            data={item.spark}
-            color="oklch(0.55 0.10 55)"
-            width={180}
-            height={32}
-          />
-          {item.brand && (
-            <div style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              opacity: 0.55,
-              marginTop: "0.25rem",
-            }}>
-              {item.brand}
-            </div>
-          )}
-          {/* Small product image tucked below — still useful as reference */}
-          {item.imageUrl && (
-            <img
-              src={item.imageUrl}
-              alt={item.name}
+      <div
+        className="mover-image"
+        style={{ position: "relative", overflow: "hidden", background: warmBg }}
+      >
+        {heroUrl ? (
+          <>
+            {/* Primary hero — dimmed, slightly desaturated */}
+            <div
+              aria-hidden
               style={{
-                width: 72,
-                height: 72,
-                objectFit: "contain",
-                opacity: 0.65,
-                marginTop: "0.75rem",
+                position:           "absolute",
+                inset:              0,
+                backgroundImage:    `url(${heroUrl})`,
+                backgroundSize:     "cover",
+                backgroundPosition: "center 20%",
+                filter:             "brightness(0.84) saturate(0.82)",
               }}
             />
-          )}
-          <span className="mover-rank">
-            No. 01 / {range === "week" ? "Week 20" : "May 2026"}
-          </span>
-          <span className="mover-market-tag">
-            {marketById(item.market).short}
-          </span>
-        </div>
-      )}
+            {/* Blur haze layer — softens detail without destroying shape */}
+            <div
+              aria-hidden
+              style={{
+                position:           "absolute",
+                inset:              0,
+                backgroundImage:    `url(${heroUrl})`,
+                backgroundSize:     "cover",
+                backgroundPosition: "center 20%",
+                filter:             "blur(10px) brightness(0.7) saturate(0.6)",
+                transform:          "scale(1.08)",
+                opacity:            0.45,
+              }}
+            />
+          </>
+        ) : (
+          /* No image: warm tinted background — still reads as a "heat" card */
+          <div aria-hidden style={{ position: "absolute", inset: 0, background: warmBg }} />
+        )}
+
+        {/* Top gradient — readability for rank + market tags */}
+        <div
+          aria-hidden
+          style={{
+            position:   "absolute",
+            top:        0,
+            left:       0,
+            right:      0,
+            height:     "55%",
+            background: "linear-gradient(to bottom, rgba(12,9,6,0.60) 0%, transparent 100%)",
+          }}
+        />
+        {/* Bottom gradient — eases blend into mover-body; covers low-area SALE text */}
+        <div
+          aria-hidden
+          style={{
+            position:   "absolute",
+            bottom:     0,
+            left:       0,
+            right:      0,
+            height:     "60%",
+            background: "linear-gradient(to top, rgba(12,9,6,0.72) 0%, transparent 100%)",
+          }}
+        />
+
+        <span className="mover-rank">
+          No. 01 / {range === "week" ? "Week 20" : "May 2026"}
+        </span>
+        <span className="mover-market-tag">
+          {marketById(item.market).short}
+        </span>
+      </div>
       <div className="mover-body">
         <div>
           <div className="mover-cat">
