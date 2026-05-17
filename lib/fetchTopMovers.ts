@@ -8,6 +8,7 @@
 // Image overrides (data/imageOverrides.ts) apply regardless of source.
 
 import { sourceForLocale } from "./sources";
+import { enrichWithDeltas } from "./snapshots";
 import { SEARCH_SEEDS } from "@/data/searchSeeds";
 import type { Product } from "@/data/products";
 import type { LocaleCode } from "@/data/locales";
@@ -57,7 +58,16 @@ export async function fetchTopMovers(
 
     if (products.length === 0) return null;
 
-    return products.sort((a, b) => b.score - a.score);
+    const sorted = products.sort((a, b) => b.score - a.score);
+
+    // Enrich with yesterday's snapshot deltas if Supabase is configured.
+    // Falls back to the raw sorted list if Supabase is absent or unreachable.
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const today = new Date().toISOString().slice(0, 10);
+      return enrichWithDeltas(sorted, today);
+    }
+
+    return sorted;
   } catch {
     return null;
   }
