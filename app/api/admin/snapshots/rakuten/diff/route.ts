@@ -7,9 +7,8 @@
 // Auth: Bearer token via ADMIN_SECRET env var.
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
-import { computeDeltas } from "@/lib/snapshots";
-import { getPreviousSnapshots } from "@/lib/snapshots";
+import { getSupabase } from "@/lib/supabase";
+import { computeDeltas, getPreviousSnapshots } from "@/lib/snapshots";
 import type { Product } from "@/data/products";
 
 function unauthorized() {
@@ -26,8 +25,13 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const date = searchParams.get("date") ?? new Date().toISOString().slice(0, 10);
 
+  const db = getSupabase();
+  if (!db) {
+    return NextResponse.json({ error: "Supabase not configured" }, { status: 503 });
+  }
+
   // Fetch today's snapshot rows.
-  const { data: todayRows, error } = await supabase
+  const { data: todayRows, error } = await db
     .from("gadget_product_snapshots")
     .select("*")
     .eq("captured_date", date)

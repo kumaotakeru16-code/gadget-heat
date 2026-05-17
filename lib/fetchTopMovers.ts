@@ -7,15 +7,14 @@
 //
 // Image overrides (data/imageOverrides.ts) apply regardless of source.
 
+import "server-only";
+
 import { sourceForLocale } from "./sources";
 import { enrichWithDeltas } from "./snapshots";
 import { SEARCH_SEEDS } from "@/data/searchSeeds";
+import { RAKUTEN_ACTIVE_MARKET_IDS } from "@/data/markets";
 import type { Product } from "@/data/products";
 import type { LocaleCode } from "@/data/locales";
-
-// Markets with validated data quality in the current JP MVP.
-// Expand when additional markets are validated.
-export const RAKUTEN_ACTIVE_MARKET_IDS = ["audio", "support"];
 
 export async function fetchTopMovers(
   locale: LocaleCode = "jp"

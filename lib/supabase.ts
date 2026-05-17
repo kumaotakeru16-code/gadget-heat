@@ -1,15 +1,21 @@
-import { createClient } from "@supabase/supabase-js";
+import "server-only";
 
-const url = process.env.SUPABASE_URL?.trim();
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-if (!url || !key) {
-  throw new Error(
-    "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env.local"
-  );
+let _client: SupabaseClient | null = null;
+
+/**
+ * Returns the Supabase service-role client, or null if env vars are not set.
+ * Callers must handle the null case (graceful fallback — never throw to UI).
+ * Server-only: do not import from client components.
+ */
+export function getSupabase(): SupabaseClient | null {
+  const url = process.env.SUPABASE_URL?.trim();
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!url || !key) return null;
+
+  if (!_client) {
+    _client = createClient(url, key, { auth: { persistSession: false } });
+  }
+  return _client;
 }
-
-// Service-role client — server-only, never import from client components.
-export const supabase = createClient(url, key, {
-  auth: { persistSession: false },
-});

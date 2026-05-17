@@ -5,7 +5,7 @@ import { PRODUCTS, MARKETS, ALL_MARKET, marketById } from "@/data";
 import { LocaleCode } from "@/data/locales";
 import { Product } from "@/data/products";
 import { applyMarketFilter } from "@/lib/filters";
-import { RAKUTEN_ACTIVE_MARKET_IDS } from "@/lib/fetchTopMovers";
+import { RAKUTEN_ACTIVE_MARKET_IDS } from "@/data/markets";
 import { fmt, signed } from "@/lib/format";
 import TopBar from "./TopBar";
 import MarketDrawer from "./MarketDrawer";

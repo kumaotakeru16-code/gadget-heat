@@ -7,7 +7,9 @@
 //      reviewsDelta, reviewsVelocity, rankUp and a fresh trend score.
 //   3. fetchTopMovers() (already implemented) uses the enriched Product list.
 
-import { supabase } from "./supabase";
+import "server-only";
+
+import { getSupabase } from "./supabase";
 import { buildProductKey } from "./productKey";
 import type { Product } from "@/data/products";
 
@@ -79,6 +81,9 @@ export async function saveProductSnapshots(products: Product[]): Promise<{
   saved: number;
   errors: string[];
 }> {
+  const db = getSupabase();
+  if (!db) return { saved: 0, errors: ["Supabase not configured"] };
+
   const rows = products.map(toRow);
   const errors: string[] = [];
   let saved = 0;
@@ -87,7 +92,7 @@ export async function saveProductSnapshots(products: Product[]): Promise<{
   const BATCH = 100;
   for (let i = 0; i < rows.length; i += BATCH) {
     const batch = rows.slice(i, i + BATCH);
-    const { error, count } = await supabase
+    const { error, count } = await db
       .from("gadget_product_snapshots")
       .upsert(batch, {
         onConflict: "source,product_id,captured_date",
@@ -118,7 +123,10 @@ export async function getPreviousSnapshots(
 ): Promise<Map<string, SnapshotRow>> {
   if (productKeys.length === 0) return new Map();
 
-  const { data, error } = await supabase
+  const db = getSupabase();
+  if (!db) return new Map();
+
+  const { data, error } = await db
     .from("gadget_product_snapshots")
     .select(
       "source,product_id,product_key,market,cat,name,brand,price,rating,review_count,score,image_url,item_url,captured_date"
