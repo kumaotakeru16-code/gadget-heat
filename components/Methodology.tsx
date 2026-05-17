@@ -49,8 +49,8 @@ export default function Methodology({ locale }: MethodologyProps) {
         <h4>Coverage</h4>
         <p>
           {locale === "jp"
-            ? "対象は Creator workflow に乗る製品のみ。撮る / 録る / 保存する / 編集する / 配信する に関係するもの。ゲーミングPC・自作PCパーツ・スマート家電は含みません。"
-            : "Scope is the creator workflow: capture, record, store, edit, broadcast. Gaming PCs, DIY parts, smart-home are intentionally excluded."}
+            ? "対象は日常生活を豊かにする Life Gadget のみ。美容・キッチン・健康・育児・デスク・掃除・アウトドアに関係する製品を楽天シグナルで選定。"
+            : "Scope is everyday life gadgets: beauty, kitchen, health, parenting, desk, home, and outdoor. Products selected for strong Rakuten review signal — not price ranking."}
         </p>
       </div>
     </div>

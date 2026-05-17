@@ -143,7 +143,7 @@ export default function GadgetHeatApp({
         <div className="tabs-row">
           <h2 className="section-title">
             {marketId === "all"
-              ? "Top Movers · Across Creator Markets"
+              ? "Top Movers · All Life Gadget Markets"
               : `Top Movers · ${currentMarket.name}${subcat ? ` · ${subcat}` : ""}`}
             <small>
               {range === "week" ? "WEEK 20 · 2026" : "MAY · 2026"}
@@ -204,7 +204,7 @@ export default function GadgetHeatApp({
         <div className="container">
           <Methodology locale={locale} />
           <div className="colophon">
-            <span>Gadget Heat · Creator Gear Market Viewer</span>
+            <span>Gadget Heat · Life Gadget Market Viewer</span>
             <span>
               v0.2 Concept ·{" "}
               {isLiveData ? "Rakuten Live" : "Static Mock"} ·{" "}

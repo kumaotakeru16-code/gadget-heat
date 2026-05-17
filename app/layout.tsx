@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Gadget Heat — 今、動いているガジェット。",
   description:
-    "Creator Gear Market Viewer. レビュー増加数と評価点数から市場の熱量を可視化。",
+    "Life Gadget Market Viewer. レビュー増加数と評価点数から市場の熱量を可視化。",
 };
 
 export default function RootLayout({

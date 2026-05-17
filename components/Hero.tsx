@@ -24,7 +24,7 @@ export default function Hero({
 }: HeroProps) {
   const isAll = market.id === "all";
   const eyebrowLabel = isAll
-    ? "CREATOR GEAR MARKET VIEWER"
+    ? "LIFE GADGET MARKET VIEWER"
     : `${market.short}${subcat ? ` · ${subcat.toUpperCase()}` : ""}`;
 
   const titleJP = isAll ? (
@@ -35,17 +35,17 @@ export default function Hero({
     </>
   ) : (
     <>
-      {market.name.replace(/^Creator /, "")}市場で
+      {market.name}市場で
       <br />
-      <span className="accent">今動いている</span>もの。
+      <span className="accent">今動いているもの</span>。
     </>
   );
 
   const titleEN = isAll ? (
     <>
-      What the <span className="accent">creator market</span>
+      What the <span className="accent">market</span>
       <br />
-      is moving on.
+      is moving on right now.
     </>
   ) : (
     <>
@@ -55,11 +55,11 @@ export default function Hero({
   );
 
   const subJP = isAll
-    ? "レビュー増加数と評価点数から、市場の熱量が高まっている Creator Gear を可視化。価格ランキングの「現在値」ではなく、「どれに注目が集まっているか」を見るためのビューワーです。"
+    ? "レビュー増加数と評価点数から、市場の熱量が高まっている Life Gadget を可視化。価格ランキングの「現在値」ではなく、「どれに注目が集まっているか」を見るためのビューワーです。"
     : market.blurb;
 
   const subEN = isAll
-    ? "Trend Score combines review velocity and rating quality across Creator markets. Not a price comparison — a view into what is gaining attention."
+    ? "Trend Score combines review velocity and rating quality across Life Gadget markets. Not a price comparison — a view into what is gaining attention right now."
     : market.blurb;
 
   return (
@@ -125,7 +125,7 @@ function HeroStats({
           reviews:     "合計レビュー数",
           trending:    "今、伸びている製品",
           rating:      "評価点数の平均",
-          creatorOnly: "Creator workflow only",
+          creatorOnly: "Signals from real shoppers",
           risingSet:   "rising set · 5.0 scale",
           pending:     "スナップショット待ち",
         }
@@ -134,7 +134,7 @@ function HeroStats({
           reviews:     "total reviews",
           trending:    "products trending now",
           rating:      "average rating",
-          creatorOnly: "creator workflow only",
+          creatorOnly: "signals from real shoppers",
           risingSet:   "on rising set · 5.0 scale",
           pending:     "snapshot pending",
         };

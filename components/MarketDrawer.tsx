@@ -96,7 +96,7 @@ export default function MarketDrawer({
       />
       <aside className={`drawer ${open ? "open" : ""}`} aria-hidden={!open}>
         <div className="drawer-head">
-          <div className="drawer-title">Markets · Creator Gear</div>
+          <div className="drawer-title">Markets · Life Gadget</div>
           <button className="drawer-close" onClick={onClose} aria-label="Close">
             <svg viewBox="0 0 14 14" width="14" height="14">
               <path
@@ -119,7 +119,7 @@ export default function MarketDrawer({
             <div>
               <div className="l1">ALL Markets</div>
               <div className="l2">
-                Across Creator Markets · {counts.all} products
+                Across Life Gadget Markets · {counts.all} products
               </div>
             </div>
             <div
@@ -186,7 +186,7 @@ export default function MarketDrawer({
         </div>
         <div className="drawer-foot">
           <span>Beta · v0.2</span>
-          <span>Creator Workflow only</span>
+          <span>Life Gadget Markets</span>
         </div>
       </aside>
     </>
