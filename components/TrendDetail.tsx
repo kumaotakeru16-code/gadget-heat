@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Product } from "@/data/products";
 import { marketById } from "@/data/markets";
 import { LOCALES, LocaleCode } from "@/data/locales";
+import { resolveImageUrl } from "@/data/imageOverrides";
 import { fmt, signed, arrowFor } from "@/lib/format";
 import ProductImage from "./ProductImage";
 import Sparkline from "./Sparkline";
@@ -58,11 +59,10 @@ export default function TrendDetail({
             cat={item.cat}
             brand={item.brand}
             color={item.color}
+            src={resolveImageUrl(item.name, item.imageUrl).url}
             showLabel={false}
+            blurBackdrop
           />
-          <span className="mover-rank">
-            {marketById(item.market).short} · {item.cat}
-          </span>
         </div>
 
         <div className="detail-body">
@@ -202,6 +202,18 @@ export default function TrendDetail({
                 </span>
               </span>
             </div>
+            {item.itemUrl && (
+              <a
+                className="cta"
+                href={item.itemUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {locale === "jp" ? "楽天で見る" : "View on Rakuten"}{" "}
+                <span className="cta-arr">↗</span>
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -214,13 +226,25 @@ export default function TrendDetail({
           </span>
         </h4>
         <div className="am-grid">
-          {loc.markets.map((m) => (
-            <div className="am-card" key={m.id}>
-              <div className="name">{m.name}</div>
-              <div className="note">{m.note}</div>
-              <div className="go">View listing →</div>
-            </div>
-          ))}
+          {loc.markets.map((m) => {
+            const href = m.id === "rakuten" ? item.itemUrl : undefined;
+            const Tag = href ? "a" : "div";
+            return (
+              <Tag
+                className="am-card"
+                key={m.id}
+                {...(href
+                  ? { href, target: "_blank", rel: "noopener noreferrer" }
+                  : {})}
+              >
+                <div className="name">{m.name}</div>
+                <div className="note">{m.note}</div>
+                <div className="go">
+                  {href ? "View listing ↗" : "View listing →"}
+                </div>
+              </Tag>
+            );
+          })}
         </div>
         <p className="am-disclaimer">
           {locale === "jp"
