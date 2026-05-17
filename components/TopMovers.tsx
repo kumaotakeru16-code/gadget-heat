@@ -3,6 +3,7 @@
 import { Product } from "@/data/products";
 import { marketById } from "@/data/markets";
 import { LocaleCode } from "@/data/locales";
+import { resolveImageUrl } from "@/data/imageOverrides";
 import { fmt, signed, arrowFor } from "@/lib/format";
 import ProductImage from "./ProductImage";
 import Sparkline from "./Sparkline";
@@ -45,25 +46,102 @@ function Mover1({
   range: "week" | "month";
   onOpen: (item: Product) => void;
 }) {
+  // Override check: curated image > Rakuten image > editorial fallback.
+  // #1 card shows Rakuten image ONLY if a curated override is available.
+  // Without an override, use the editorial score/spark layout instead.
+  const { url: displayUrl, isOverride } = resolveImageUrl(item.name, item.imageUrl);
+  const showImage = isOverride && !!displayUrl;
+
   return (
     <article className="mover mover-1" onClick={() => onOpen(item)}>
-      <div className="mover-image">
-        {/* blurBackdrop: editorial treatment — keeps product against warm neutral bg.
-            To switch to image-less mode, remove src and let score/spark fill the card. */}
-        <ProductImage
-          cat={item.cat}
-          brand={item.brand}
-          color={item.color}
-          src={item.imageUrl}
-          blurBackdrop={!!item.imageUrl}
-        />
-        <span className="mover-rank">
-          No. 01 / {range === "week" ? "Week 20" : "May 2026"}
-        </span>
-        <span className="mover-market-tag">
-          {marketById(item.market).short}
-        </span>
-      </div>
+      {showImage ? (
+        <div className="mover-image">
+          <ProductImage
+            cat={item.cat}
+            brand={item.brand}
+            color={item.color}
+            src={displayUrl}
+            blurBackdrop
+          />
+          <span className="mover-rank">
+            No. 01 / {range === "week" ? "Week 20" : "May 2026"}
+          </span>
+          <span className="mover-market-tag">
+            {marketById(item.market).short}
+          </span>
+        </div>
+      ) : (
+        // Editorial fallback: no curated image → lead with score + spark + brand typography
+        <div
+          className="mover-image"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "0.5rem",
+            background: item.color,
+            padding: "2rem 1.5rem",
+          }}
+        >
+          <div style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 10,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            opacity: 0.5,
+          }}>
+            Trend Score
+          </div>
+          <div style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: "clamp(4.5rem, 9vw, 8rem)",
+            lineHeight: 1,
+            color: "var(--ink-1)",
+            letterSpacing: "-0.02em",
+          }}>
+            {item.score}
+          </div>
+          <Sparkline
+            data={item.spark}
+            color="oklch(0.55 0.10 55)"
+            width={180}
+            height={32}
+          />
+          {item.brand && (
+            <div style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              opacity: 0.55,
+              marginTop: "0.25rem",
+            }}>
+              {item.brand}
+            </div>
+          )}
+          {/* Small product image tucked below — still useful as reference */}
+          {item.imageUrl && (
+            <img
+              src={item.imageUrl}
+              alt={item.name}
+              style={{
+                width: 72,
+                height: 72,
+                objectFit: "contain",
+                opacity: 0.65,
+                marginTop: "0.75rem",
+              }}
+            />
+          )}
+          <span className="mover-rank">
+            No. 01 / {range === "week" ? "Week 20" : "May 2026"}
+          </span>
+          <span className="mover-market-tag">
+            {marketById(item.market).short}
+          </span>
+        </div>
+      )}
       <div className="mover-body">
         <div>
           <div className="mover-cat">
@@ -195,7 +273,7 @@ function MoverSide({
           cat={item.cat}
           brand={item.brand}
           color={item.color}
-          src={item.imageUrl}
+          src={resolveImageUrl(item.name, item.imageUrl).url}
           showLabel={false}
         />
         <span className="mover-rank">

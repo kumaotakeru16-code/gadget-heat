@@ -1,3 +1,8 @@
+// Image priority (resolved by caller):
+//   1. imageOverrides (curated editorial)
+//   2. src (Rakuten URL, already _ex-stripped)
+//   3. placeholder card
+
 interface ProductImageProps {
   cat?: string;
   brand?: string;
@@ -5,11 +10,7 @@ interface ProductImageProps {
   src?: string;
   showLabel?: boolean;
   size?: "lg" | "md" | "sm";
-  // Enables editorial blur-backdrop treatment for large hero cards.
-  // When false (default), renders a clean product image or placeholder.
-  // Future: set src=undefined to switch to image-less editorial mode
-  // (score typography + sparkline + brand mark only).
-  blurBackdrop?: boolean;
+  blurBackdrop?: boolean; // editorial blur-haze behind product for large cards
 }
 
 export default function ProductImage({
@@ -34,7 +35,6 @@ export default function ProductImage({
       >
         {src ? (
           <>
-            {/* Blurred backdrop — softens hard edges, keeps editorial feel */}
             {blurBackdrop && (
               <div
                 aria-hidden

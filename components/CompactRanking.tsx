@@ -2,6 +2,7 @@
 
 import { Product } from "@/data/products";
 import { marketById } from "@/data/markets";
+import { resolveImageUrl } from "@/data/imageOverrides";
 import { fmt, signed, arrowFor } from "@/lib/format";
 import ProductImage from "./ProductImage";
 import Sparkline from "./Sparkline";
@@ -68,7 +69,7 @@ function RankRow({
           brand={item.brand}
           showLabel={false}
           color={item.color}
-          src={item.imageUrl}
+          src={resolveImageUrl(item.name, item.imageUrl).url}
           size="sm"
         />
       </div>
