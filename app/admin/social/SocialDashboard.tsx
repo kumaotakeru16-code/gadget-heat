@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { SocialCandidate } from "./types";
 import CardPreview from "./CardPreview";
 import { toProxiedImageUrl } from "@/lib/image-proxy";
@@ -9,8 +9,8 @@ import { toProxiedImageUrl } from "@/lib/image-proxy";
 // 将来的にはLLMに差し替えられるよう、独立した関数として切り出す
 function buildPostText(c: SocialCandidate): string {
   const { product: p, shortReason } = c;
-  const rating = p.rating.toFixed(1);
-  const delta  = p.reviewsDelta ?? 0;
+  const rating    = p.rating.toFixed(1);
+  const delta     = p.reviewsDelta ?? 0;
   const deltaNote = delta > 0 ? `（直近${delta}件増加）` : "";
   return [
     "これ、ちょっと気になる。",
@@ -30,14 +30,27 @@ function buildPostText(c: SocialCandidate): string {
 }
 
 const MARKET_LABELS: Record<string, string> = {
-  beauty:    "Beauty Tech",
-  kitchen:   "Kitchen Tech",
-  health:    "Health Tech",
-  parenting: "Parenting Gadgets",
-  desk:      "Desk Gadgets",
-  cleaning:  "Home & Cleaning",
-  outdoor:   "Outdoor & Emergency",
+  beauty:   "Beauty Tech",
+  kitchen:  "Kitchen Tech",
+  health:   "Health & Wellness",
+  cleaning: "Home & Cleaning",
+  outdoor:  "Outdoor & Emergency",
+  daily:    "Daily Utility",
 };
+
+// ─── Scroll-to-detail (mobile only) ──────────────────────────────────────────
+// レイアウト自体はTailwindのmd:クラスで制御するため、ここではスクロール動作のみ。
+function useScrollToDetail(
+  ref: React.RefObject<HTMLDivElement | null>,
+  trigger: number,
+) {
+  useEffect(() => {
+    if (!ref.current) return;
+    const mq = window.matchMedia("(max-width: 767px)");
+    if (!mq.matches) return;
+    ref.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [ref, trigger]);
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,6 +64,9 @@ interface Props {
 export default function SocialDashboard({ candidates, generatedAt }: Props) {
   const [selected, setSelected] = useState(0);
   const [copied, setCopied]     = useState(false);
+  const detailRef = useRef<HTMLDivElement>(null);
+
+  useScrollToDetail(detailRef, selected);
 
   const current  = candidates[selected] ?? null;
   const postText = current ? buildPostText(current) : "";
@@ -67,26 +83,24 @@ export default function SocialDashboard({ candidates, generatedAt }: Props) {
   });
 
   return (
-    <div style={{
-      fontFamily: "'Geist', 'Noto Sans JP', -apple-system, sans-serif",
-      background: "oklch(0.965 0.008 78)",
-      color:      "oklch(0.20 0.012 65)",
-      minHeight:  "100vh",
-      display:    "flex",
-      flexDirection: "column",
-      fontSize:   13,
-    }}>
+    <div
+      className="min-h-screen flex flex-col"
+      style={{
+        fontFamily: "'Geist', 'Noto Sans JP', -apple-system, sans-serif",
+        background: "oklch(0.965 0.008 78)",
+        color:      "oklch(0.20 0.012 65)",
+        fontSize:   13,
+      }}
+    >
 
       {/* ── TopBar ─────────────────────────────────────────────────────────── */}
-      <div style={{
-        borderBottom: "1px solid oklch(0.88 0.010 65)",
-        padding:      "14px 24px",
-        display:      "flex",
-        alignItems:   "center",
-        gap:          16,
-        background:   "oklch(0.985 0.006 78)",
-        flexShrink:   0,
-      }}>
+      <div
+        className="shrink-0 flex flex-wrap items-center gap-1.5 md:gap-4 py-3 px-4 md:py-3.5 md:px-6"
+        style={{
+          borderBottom: "1px solid oklch(0.88 0.010 65)",
+          background:   "oklch(0.985 0.006 78)",
+        }}
+      >
         <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: "-0.01em" }}>
           Life Gadget Heat
         </span>
@@ -97,7 +111,10 @@ export default function SocialDashboard({ candidates, generatedAt }: Props) {
         }}>
           X投稿管理
         </span>
-        <div style={{ marginLeft: "auto", fontSize: 11, color: "oklch(0.52 0.010 65)" }}>
+        <div
+          className="w-full md:w-auto md:ml-auto"
+          style={{ fontSize: 11, color: "oklch(0.52 0.010 65)" }}
+        >
           {dateLabel}
           {candidates.length > 0
             ? ` · ${candidates.length}件の候補`
@@ -106,21 +123,33 @@ export default function SocialDashboard({ candidates, generatedAt }: Props) {
       </div>
 
       {/* ── Body ───────────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
+      {/*
+        mobile : flex-col — リスト → 詳細の縦積み。ページ全体でスクロール。
+        desktop: flex-row / overflow-hidden — 各パネルが独立してスクロール。
+      */}
+      <div className="flex flex-col md:flex-row md:flex-1 md:min-h-0 md:overflow-hidden">
 
-        {/* Left: candidate list */}
-        <div style={{
-          width:        300,
-          flexShrink:   0,
-          borderRight:  "1px solid oklch(0.88 0.010 65)",
-          overflowY:    "auto",
-          background:   "oklch(0.975 0.006 78)",
-        }}>
-          <div style={{
-            padding: "10px 16px 6px",
-            fontSize: 9, fontWeight: 600, letterSpacing: "0.14em",
-            textTransform: "uppercase", color: "oklch(0.72 0.010 65)",
-          }}>
+        {/* ── Left: candidate list ─────────────────────────────────────────── */}
+        <div
+          className="w-full md:w-[300px] shrink-0 overflow-y-auto max-h-[42vh] md:max-h-none border-b-2 md:border-b-0 md:border-r"
+          style={{
+            borderColor: "oklch(0.88 0.010 65)",
+            background:  "oklch(0.975 0.006 78)",
+          }}
+        >
+          {/* Sticky header */}
+          <div
+            className="sticky top-0 z-10"
+            style={{
+              padding:       "10px 16px 6px",
+              background:    "oklch(0.975 0.006 78)",
+              fontSize:      9,
+              fontWeight:    600,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color:         "oklch(0.72 0.010 65)",
+            }}
+          >
             投稿候補 ({candidates.length}件)
           </div>
 
@@ -138,56 +167,50 @@ export default function SocialDashboard({ candidates, generatedAt }: Props) {
               <button
                 key={p.id}
                 onClick={() => { setSelected(i); setCopied(false); }}
+                className="w-full flex items-start gap-2.5 px-3.5 py-3 md:py-2.5 text-left cursor-pointer transition-colors"
                 style={{
-                  width:        "100%",
-                  display:      "flex",
-                  alignItems:   "flex-start",
-                  gap:          10,
-                  padding:      "10px 14px",
                   border:       "none",
                   borderBottom: "1px solid oklch(0.92 0.008 65)",
-                  background:   isActive
-                    ? "oklch(0.945 0.015 78)"
-                    : "transparent",
-                  cursor:       "pointer",
-                  textAlign:    "left",
-                  transition:   "background 0.1s",
+                  background:   isActive ? "oklch(0.945 0.015 78)" : "transparent",
                 }}
               >
-                {/* Thumbnail — proxy経由でCORS回避 */}
+                {/* Thumbnail: 56px on mobile, 40px on desktop */}
                 {toProxiedImageUrl(p.imageUrl) ? (
                   <img
                     src={toProxiedImageUrl(p.imageUrl)!}
                     alt=""
-                    style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 4, flexShrink: 0 }}
+                    className="w-14 h-14 md:w-10 md:h-10 object-cover rounded shrink-0"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).style.display = "none";
                     }}
                   />
                 ) : (
-                  <div style={{
-                    width: 40, height: 40, flexShrink: 0, borderRadius: 4,
-                    background: "oklch(0.90 0.010 65)",
-                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18,
-                  }}>
+                  <div
+                    className="w-14 h-14 md:w-10 md:h-10 shrink-0 rounded flex items-center justify-center text-2xl md:text-lg"
+                    style={{ background: "oklch(0.90 0.010 65)" }}
+                  >
                     🛍
                   </div>
                 )}
 
                 {/* Meta */}
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="flex-1 min-w-0">
                   <div style={{
-                    fontSize: 11, fontWeight: 600, lineHeight: 1.35,
-                    overflow: "hidden", display: "-webkit-box",
-                    WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                    fontSize:        11,
+                    fontWeight:      600,
+                    lineHeight:      1.38,
+                    overflow:        "hidden",
+                    display:         "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    wordBreak:       "break-word",
                   }}>
                     {p.name}
                   </div>
-                  <div style={{
-                    marginTop: 4, fontSize: 10,
-                    color: "oklch(0.52 0.010 65)",
-                    display: "flex", gap: 8, flexWrap: "wrap",
-                  }}>
+                  <div
+                    className="flex flex-wrap gap-2 mt-1"
+                    style={{ fontSize: 10, color: "oklch(0.52 0.010 65)" }}
+                  >
                     <span>⭐{p.rating.toFixed(1)}</span>
                     {delta > 0 && (
                       <span style={{ color: "oklch(0.55 0.08 145)" }}>▲{delta}</span>
@@ -200,11 +223,14 @@ export default function SocialDashboard({ candidates, generatedAt }: Props) {
           })}
         </div>
 
-        {/* Right: detail */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "28px 32px", minWidth: 0 }}>
+        {/* ── Right: detail ────────────────────────────────────────────────── */}
+        <div
+          ref={detailRef}
+          className="min-w-0 p-4 md:flex-1 md:py-7 md:px-8 md:overflow-y-auto"
+        >
           {!current ? (
             <div style={{ color: "oklch(0.52 0.010 65)" }}>
-              左の候補一覧から商品を選択してください。
+              候補一覧から商品を選択してください。
             </div>
           ) : (
             <Detail
@@ -236,24 +262,33 @@ function Detail({
   const p = candidate.product;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+    <div className="flex flex-col gap-5 md:gap-7">
 
       {/* Product metadata */}
       <div>
         <div style={{
-          fontSize: 9, fontWeight: 600, letterSpacing: "0.14em",
-          textTransform: "uppercase", color: "oklch(0.72 0.010 65)",
-          marginBottom: 8,
+          fontSize:      9,
+          fontWeight:    600,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color:         "oklch(0.72 0.010 65)",
+          marginBottom:  8,
         }}>
           {MARKET_LABELS[p.market] ?? p.market} · {p.cat}
         </div>
-        <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.4, marginBottom: 10 }}>
+        <div style={{
+          fontSize:     16,
+          fontWeight:   700,
+          lineHeight:   1.4,
+          marginBottom: 10,
+          wordBreak:    "break-word",
+        }}>
           {p.name}
         </div>
-        <div style={{
-          display: "flex", gap: 20, fontSize: 12,
-          color: "oklch(0.36 0.010 65)", flexWrap: "wrap",
-        }}>
+        <div
+          className="flex flex-wrap gap-3 md:gap-5"
+          style={{ fontSize: 12, color: "oklch(0.36 0.010 65)" }}
+        >
           <span>⭐ {p.rating.toFixed(1)}</span>
           <span>{(p.rawReviewCount ?? 0).toLocaleString()} reviews</span>
           {(p.reviewsDelta ?? 0) > 0 && (
@@ -268,9 +303,16 @@ function Detail({
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              display: "inline-block", marginTop: 10,
-              fontSize: 11, color: "oklch(0.45 0.05 250)",
+              display:        "inline-block",
+              marginTop:      10,
+              padding:        "7px 14px",
+              borderRadius:   4,
+              border:         "1px solid oklch(0.88 0.010 65)",
+              background:     "oklch(0.985 0.006 78)",
+              fontSize:       12,
+              color:          "oklch(0.45 0.05 250)",
               textDecoration: "none",
+              fontWeight:     500,
             }}
           >
             楽天で確認 →
@@ -284,40 +326,35 @@ function Detail({
         <CardPreview candidate={candidate} />
       </div>
 
-      {/* Post text */}
+      {/* Post text + copy */}
       <div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <div className="flex items-center flex-wrap gap-2.5 mb-2.5">
           <SectionLabel>投稿文</SectionLabel>
           <button
             onClick={onCopy}
+            className="w-full md:w-auto py-2 md:py-1 px-5 md:px-3.5 rounded font-medium cursor-pointer transition-all text-[13px] md:text-[11px]"
             style={{
-              padding:    "4px 14px",
-              borderRadius: 4,
               border:     `1px solid ${copied ? "oklch(0.75 0.06 145)" : "oklch(0.88 0.010 65)"}`,
               background: copied ? "oklch(0.93 0.04 145)" : "oklch(0.985 0.006 78)",
-              fontSize:   11,
-              cursor:     "pointer",
               color:      copied ? "oklch(0.42 0.10 145)" : "oklch(0.36 0.010 65)",
-              fontWeight: 500,
-              transition: "all 0.15s",
             }}
           >
             {copied ? "✓ コピーしました" : "投稿文をコピー"}
           </button>
         </div>
-        <pre style={{
-          margin:      0,
-          padding:     "14px 18px",
-          background:  "oklch(0.985 0.006 78)",
-          border:      "1px solid oklch(0.88 0.010 65)",
-          borderRadius: 6,
-          fontSize:    12,
-          lineHeight:  1.75,
-          whiteSpace:  "pre-wrap",
-          wordBreak:   "break-word",
-          color:       "oklch(0.20 0.012 65)",
-          fontFamily:  "'Geist Mono', 'Noto Sans JP', monospace",
-        }}>
+        <pre
+          className="m-0 text-[13px] md:text-[12px] px-3.5 py-3 md:px-[18px] md:py-[14px]"
+          style={{
+            background:  "oklch(0.985 0.006 78)",
+            border:      "1px solid oklch(0.88 0.010 65)",
+            borderRadius: 6,
+            lineHeight:  1.75,
+            whiteSpace:  "pre-wrap",
+            wordBreak:   "break-word",
+            color:       "oklch(0.20 0.012 65)",
+            fontFamily:  "'Geist Mono', 'Noto Sans JP', monospace",
+          }}
+        >
           {postText}
         </pre>
         <div style={{ marginTop: 6, fontSize: 10, color: "oklch(0.72 0.010 65)" }}>
@@ -337,9 +374,12 @@ function Detail({
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      fontSize: 9, fontWeight: 600, letterSpacing: "0.14em",
-      textTransform: "uppercase", color: "oklch(0.72 0.010 65)",
-      marginBottom: 10,
+      fontSize:      9,
+      fontWeight:    600,
+      letterSpacing: "0.14em",
+      textTransform: "uppercase",
+      color:         "oklch(0.72 0.010 65)",
+      marginBottom:  10,
     }}>
       {children}
     </div>
