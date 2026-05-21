@@ -1,8 +1,10 @@
 import GadgetHeatApp from "@/components/GadgetHeatApp";
-import { fetchTopMovers } from "@/lib/fetchTopMovers";
+import { fetchTopMoversLite } from "@/lib/fetchTopMoversLite";
+
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const result = await fetchTopMovers();
+  const result = await fetchTopMoversLite();
   return (
     <GadgetHeatApp
       initialRakutenProducts={result?.products ?? null}
