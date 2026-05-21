@@ -52,44 +52,58 @@ function candidateRank(p: Product): number {
 
 // ─── Short-reason rulebook (カテゴリ別ルールベース生成) ───────────────────────
 const CAT_REASONS: Record<string, string> = {
-  "Hair Dryer":       "毎日のヘアケアが格段に早くなりそう。",
-  "Hair Iron":        "スタイリングの仕上がりが変わりそう。",
-  "Face Care":        "スキンケアをもっと効率よく。",
-  "EMS":              "自宅で手軽にケアできるガジェット。",
-  "Scalp Care":       "頭皮ケアを日課にできそう。",
-  "Hair Removal":     "サロン品質のケアが自宅で。",
+  // Beauty Tech
+  "Hair Dryer":          "毎日のヘアケアが格段に早くなりそう。",
+  "Hair Iron":           "スタイリングの仕上がりが変わりそう。",
+  "Face Care":           "スキンケアをもっと効率よく。",
+  "EMS Beauty":          "自宅で手軽に美容ケアができる。",
+  "EMS Body":            "自宅で手軽にボディケアができる。",
+  "Scalp Care":          "頭皮ケアを日課にできそう。",
+  "Hair Removal":        "サロン品質のケアが自宅で。",
+  "Electric Toothbrush": "歯磨きの質がワンランク上がりそう。",
+
+  // Kitchen Tech
   "Air Fryer":        "揚げ物が罪悪感なく食べられる。",
   "Auto Cooker":      "料理の手間がぐっと減るかも。",
   "Coffee Maker":     "毎朝のコーヒーが一段上になりそう。",
   "Soda Maker":       "炭酸水が好きな人にはたまらない。",
   "Vacuum Sealer":    "食材の鮮度が長持ちするようになる。",
   "Electric Mill":    "本格的なコーヒー体験が自宅で。",
-  "Massage Gun":      "疲れた筋肉をしっかりほぐせる。",
-  "Foot Massager":    "1日の終わりに足をリセットできる。",
-  "Smart Scale":      "健康管理がもっとシンプルに。",
-  "Neck Care":        "デスクワークの首こりが和らぎそう。",
-  "Sleep Gadget":     "睡眠の質を上げる一手。",
-  "Baby Monitor":     "赤ちゃんの様子が離れていても確認できる。",
-  "Bottle Warmer":    "夜中のミルク作りが楽になりそう。",
-  "Baby Scale":       "体重管理が手軽にできる。",
-  "Nursing Gadget":   "育児の負担を少しでも減らす工夫。",
-  "Baby Humidifier":  "赤ちゃんの部屋を快適な湿度に保てる。",
-  "Desk Light":       "手元の光で集中力が変わる。",
-  "USB-C Hub":        "デスク周りがすっきり整理できそう。",
-  "Wireless Charger": "ケーブルなしで充電できるのは便利。",
-  "Keyboard":         "毎日使うものだからこだわりたい。",
-  "Standing Desk":    "座りっぱなしの解消に一役買う。",
-  "Gadget Organizer": "デスクの小物がまとまる。",
-  "Robot Vacuum":     "掃除が全自動になる。",
-  "Handy Vacuum":     "さっと取り出してすぐ使える手軽さ。",
-  "Air Purifier":     "部屋の空気が常に清潔に。",
-  "Dehumidifier":     "梅雨時期の湿気対策に。",
-  "Smart Lighting":   "照明ひとつで部屋の雰囲気が変わる。",
+  "Kitchen Scale":    "計量が正確になると料理の再現性が上がる。",
+
+  // Home & Cleaning
+  "Robot Vacuum":    "掃除が全自動になる。",
+  "Stick Vacuum":    "さっと取り出してすぐ使えるコードレス掃除機。",
+  "Air Purifier":    "部屋の空気が常に清潔に。",
+  "Dehumidifier":    "梅雨時期の湿気対策に。",
+  "Futon Cleaner":   "布団の中のダニ・ハウスダストを手軽に除去。",
+  "Steam Cleaner":   "水蒸気で洗剤なしに汚れを落とせる。",
+  "Smart Lighting":  "照明ひとつで部屋の雰囲気が変わる。",
+
+  // Outdoor & Emergency
   "Portable Power":   "停電・アウトドアで頼れる一台。",
   "LED Lantern":      "キャンプや非常時に明かりを確保。",
   "Emergency Radio":  "もしものときの情報源として。",
-  "Solar Charger":    "太陽光で充電できる頼もしさ。",
-  "Mini Generator":   "本格的な電力バックアップに。",
+  "Solar Panel":      "太陽光でどこでも充電できる。",
+  "Camping Fan":      "夏のキャンプの暑さ対策に。",
+  "Cooler Box":       "食材や飲み物を長時間冷やせる。",
+
+  // Daily Utility
+  "Storage":          "ごちゃつきがちな収納がすっきりまとまる。",
+  "Laundry":          "洗濯まわりの手間がひとつ減る。",
+  "Cleaning Tools":   "日々の掃除がもっとラクになりそう。",
+  "Kitchen Utility":  "キッチンの小さな不便を解消できる。",
+  "Energy Saving":    "毎月の電気代を少し抑えられるかも。",
+  "Winter Goods":     "冬の寒さ対策をひとつ強化できる。",
+  "Disaster Goods":   "いざというときのための備えに。",
+  "Bathroom Utility": "毎日使う場所だからこそ、快適にしたい。",
+
+  // Health & Wellness
+  "Massage Gun":   "疲れた筋肉をしっかりほぐせる。",
+  "Foot Massager": "1日の終わりに足をリセットできる。",
+  "Smart Scale":   "健康管理がもっとシンプルに。",
+  "Neck Care":     "デスクワークの首こりが和らぎそう。",
+  "Sleep Gadget":  "睡眠の質を上げる一手。",
 };
 
 export default async function SocialAdminPage({

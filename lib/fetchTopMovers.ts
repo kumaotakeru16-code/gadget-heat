@@ -29,10 +29,15 @@ export async function fetchTopMovers(
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
       const today    = new Date().toISOString().slice(0, 10);
       const enriched = await enrichWithDeltas(products, today);
-      // Recompute delta-dependent stats after enrichment
-      const totalReviewsDelta = enriched.reduce((s, p) => s + (p.reviewsDelta ?? 0), 0);
+
+      // Re-sort by momentum score so Δ-active products bubble to the top.
+      // fetchByCategories sorted by the Rakuten quality score; enrichWithDeltas
+      // replaces scores with the momentum formula, so we re-sort here.
+      const resorted = [...enriched].sort((a, b) => b.score - a.score);
+
+      const totalReviewsDelta = resorted.reduce((s, p) => s + (p.reviewsDelta ?? 0), 0);
       return {
-        products: enriched,
+        products: resorted,
         stats: { ...stats, totalReviewsDelta },
       };
     }

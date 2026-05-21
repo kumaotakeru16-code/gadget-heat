@@ -94,13 +94,15 @@ export default function TrendDetail({
                   fontSize: 10,
                   letterSpacing: "0.16em",
                   textTransform: "uppercase",
-                  color: "var(--ink-3)",
+                  color: item.isBaselineScore ? "var(--ink-4)" : "var(--ink-3)",
                   marginBottom: 8,
                 }}
               >
-                Trend Score
+                {item.isBaselineScore ? "Baseline Score" : "Trend Score"}
               </div>
-              <div className="big">{item.score}</div>
+              <div className="big" style={item.isBaselineScore ? { color: "var(--ink-4)" } : {}}>
+                {item.score}
+              </div>
             </div>
             <Sparkline
               data={view}
@@ -110,39 +112,71 @@ export default function TrendDetail({
               strokeWidth={1.6}
             />
             <div className="trend-change">
-              <div
-                className={`pct ${item.scoreChg < 0 ? "down" : ""} ${arrowFor(item.scoreChg)}`}
-                style={{ fontSize: 22 }}
-              >
-                {signed(item.scoreChg, { fixed: 1 })}%
-              </div>
-              <div className="since">vs prev {window}</div>
+              {item.isBaselineScore ? (
+                <div className="since" style={{ color: "var(--ink-4)", fontStyle: "italic", fontSize: 12 }}>
+                  Awaiting movement data
+                </div>
+              ) : (
+                <>
+                  <div
+                    className={`pct ${item.scoreChg < 0 ? "down" : ""} ${arrowFor(item.scoreChg)}`}
+                    style={{ fontSize: 22 }}
+                  >
+                    {signed(item.scoreChg, { fixed: 1 })}%
+                  </div>
+                  <div className="since">vs prev {window}</div>
+                </>
+              )}
             </div>
           </div>
 
           <div className="detail-signals">
+            {/* Reviews Δ — primary momentum signal */}
             <div className="signal">
-              <div className="l">Review Δ</div>
-              <div className="v">+{item.reviewsDelta}</div>
-              <div className="d">
-                {window === "24h"
-                  ? `→ ${item.reviewsVelocity.toFixed(1)}/day`
-                  : `${range === "week" ? "7d" : "30d"} total`}
-              </div>
+              {item.reviewsDelta > 0 ? (
+                <>
+                  <div className="l">Reviews Δ</div>
+                  <div className="v">+{item.reviewsDelta}</div>
+                  <div className="d">
+                    {window === "24h"
+                      ? `→ ${item.reviewsVelocity.toFixed(1)}/day`
+                      : `${range === "week" ? "7d" : "30d"} total`}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="l" style={{ color: "var(--ink-4)" }}>Reviews</div>
+                  <div className="v" style={{ color: "var(--ink-4)" }}>{item.rawReviewCount ?? "—"}</div>
+                  <div className="d flat">no new</div>
+                </>
+              )}
             </div>
             <div className="signal">
               <div className="l">Velocity</div>
               <div className="v">{item.reviewsVelocity.toFixed(1)}</div>
               <div className="d">reviews / day</div>
             </div>
+            {/* Rating Δ as primary when moving; plain rating (muted) otherwise */}
             <div className="signal">
-              <div className="l">Rating</div>
-              <div className="v">{item.rating.toFixed(1)}</div>
-              <div
-                className={`d ${item.ratingChg === 0 ? "flat" : ""} ${arrowFor(item.ratingChg)}`}
-              >
-                {signed(item.ratingChg, { fixed: 1 })}
-              </div>
+              {item.ratingChg !== 0 ? (
+                <>
+                  <div className="l">Rating Δ</div>
+                  <div className={`v ${arrowFor(item.ratingChg)}`}>
+                    {signed(item.ratingChg, { fixed: 2 })}
+                  </div>
+                  <div className="d" style={{ color: "var(--ink-4)" }}>
+                    {item.rating.toFixed(1)} now
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="l" style={{ color: "var(--ink-4)" }}>Rating</div>
+                  <div className="v" style={{ color: "var(--ink-4)", fontSize: 18 }}>
+                    {item.rating.toFixed(1)}
+                  </div>
+                  <div className="d flat">—</div>
+                </>
+              )}
             </div>
             <div className="signal">
               <div className="l">Rank Δ</div>
@@ -169,8 +203,16 @@ export default function TrendDetail({
             <span className="glyph">❝</span>
             <p>
               {locale === "jp"
-                ? `${item.cat} 市場でレビューが急速に増えており、評価は ${item.rating.toFixed(1)} と高水準。${item.rankUp > 0 ? `ランキングは ${item.rankUp} ポジション上昇。` : ""}市場の注目が継続的に集まっている製品です。`
-                : `Reviews are accelerating in ${item.cat} with a strong ${item.rating.toFixed(1)} quality signal${item.rankUp > 0 ? ` and a ${item.rankUp}-spot rank gain` : ""}. Sustained market attention.`}
+                ? item.isBaselineScore
+                  ? `${item.cat} 市場の商品。まだ前日比較データがないため、評価ベースのBaselineスコアを表示しています。明日以降、Trend Scoreとして市場の動きが可視化されます。`
+                  : item.reviewsDelta > 0
+                    ? `${item.cat} 市場でレビューが ${item.reviewsDelta} 件増加。${item.ratingChg > 0 ? `評価も ${signed(item.ratingChg, { fixed: 2 })} 上昇中。` : ""}市場が今動いている製品です。`
+                    : `${item.cat} 市場。レビューの新規増加はまだないが、${item.rating.toFixed(1)} の評価で安定した信頼性がある製品です。`
+                : item.isBaselineScore
+                  ? `${item.cat} market — no prior snapshot yet. Showing a quality-based Baseline Score until movement data arrives tomorrow.`
+                  : item.reviewsDelta > 0
+                    ? `${item.cat}: +${item.reviewsDelta} new reviews since yesterday.${item.ratingChg > 0 ? ` Rating trending up ${signed(item.ratingChg, { fixed: 2 })}.` : ""} The market is moving on this one.`
+                    : `${item.cat} — no new reviews yet, but a solid ${item.rating.toFixed(1)} trust signal.`}
             </p>
           </div>
 

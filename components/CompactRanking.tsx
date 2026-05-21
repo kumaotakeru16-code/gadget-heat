@@ -81,36 +81,54 @@ function RankRow({
         <div className="nm">{item.name}</div>
       </div>
       <div className="rk-trend">
-        <div className="score">{item.score}</div>
-        <div
-          className={`chg ${item.scoreChg < 0 ? "down" : item.scoreChg === 0 ? "flat" : ""} ${arrowFor(item.scoreChg)}`}
-        >
-          {signed(item.scoreChg, { fixed: 1 })}%
+        <div className="score" style={item.isBaselineScore ? { color: "var(--ink-4)" } : {}}>
+          {item.score}
         </div>
-      </div>
-      <div className="rk-metric">
-        {item.rawReviewCount !== undefined && item.reviewsDelta === 0 ? (
-          <>
-            <div className="ml">Reviews</div>
-            <div className="mv">{item.rawReviewCount}</div>
-            <div className="md">total</div>
-          </>
+        {item.isBaselineScore ? (
+          <div className="chg flat" style={{ fontSize: 9, color: "var(--ink-4)" }}>
+            baseline
+          </div>
         ) : (
+          <div className={`chg ${item.scoreChg < 0 ? "down" : item.scoreChg === 0 ? "flat" : ""} ${arrowFor(item.scoreChg)}`}>
+            {signed(item.scoreChg, { fixed: 1 })}%
+          </div>
+        )}
+      </div>
+      {/* Reviews Δ — primary metric */}
+      <div className="rk-metric">
+        {item.reviewsDelta > 0 ? (
           <>
             <div className="ml">Reviews Δ</div>
             <div className="mv">+{item.reviewsDelta}</div>
             <div className="md up">→ {item.reviewsVelocity.toFixed(1)}/d</div>
           </>
+        ) : (
+          <>
+            <div className="ml">Reviews</div>
+            <div className="mv" style={{ color: "var(--ink-4)" }}>{item.rawReviewCount ?? "—"}</div>
+            <div className="md flat">no new</div>
+          </>
         )}
       </div>
+      {/* Rating Δ when available; muted rating otherwise */}
       <div className="rk-metric">
-        <div className="ml">Rating</div>
-        <div className="mv">{item.rating.toFixed(1)}</div>
-        <div
-          className={`md ${item.ratingChg === 0 ? "flat" : ""} ${arrowFor(item.ratingChg)}`}
-        >
-          {signed(item.ratingChg, { fixed: 1 })}
-        </div>
+        {item.ratingChg !== 0 ? (
+          <>
+            <div className="ml">Rating Δ</div>
+            <div className={`mv ${arrowFor(item.ratingChg)}`}>
+              {signed(item.ratingChg, { fixed: 2 })}
+            </div>
+            <div className="md" style={{ color: "var(--ink-4)" }}>
+              {item.rating.toFixed(1)} now
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="ml" style={{ color: "var(--ink-4)" }}>Rating</div>
+            <div className="mv" style={{ color: "var(--ink-4)", fontSize: 13 }}>{item.rating.toFixed(1)}</div>
+            <div className="md flat">—</div>
+          </>
+        )}
       </div>
       {showSpark ? (
         <Sparkline

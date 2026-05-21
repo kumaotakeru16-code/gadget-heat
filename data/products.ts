@@ -23,6 +23,9 @@ export interface Product {
   itemUrl?: string;
   rawReviewCount?: number;
   source?: "rakuten" | "bestbuy" | "static";
+  // true when no prior snapshot exists — score is quality-based fallback,
+  // not a momentum score.  UI should show "Baseline" instead of "Trend Score".
+  isBaselineScore?: boolean;
 }
 
 function spark(endVal: number, vol = 0.18): number[] {

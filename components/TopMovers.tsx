@@ -138,8 +138,12 @@ function Mover1({
         <div className="mover-1-mob">
           <div className="m1m-trend">
             <div>
-              <div className="m1m-score">{item.score}</div>
-              <div className="m1m-lab">Heat</div>
+              <div className="m1m-score" style={item.isBaselineScore ? { color: "var(--ink-4)" } : {}}>
+                {item.score}
+              </div>
+              <div className="m1m-lab">
+                {item.isBaselineScore ? "Baseline" : "Heat"}
+              </div>
             </div>
             <Sparkline
               data={item.spark}
@@ -149,24 +153,32 @@ function Mover1({
               fill={false}
               strokeWidth={1.2}
             />
-            <div className={`m1m-pct ${item.scoreChg < 0 ? "down" : ""} ${arrowFor(item.scoreChg)}`}>
-              {signed(item.scoreChg, { fixed: 1 })}%
-            </div>
+            {!item.isBaselineScore && (
+              <div className={`m1m-pct ${item.scoreChg < 0 ? "down" : ""} ${arrowFor(item.scoreChg)}`}>
+                {signed(item.scoreChg, { fixed: 1 })}%
+              </div>
+            )}
           </div>
           <div className="m1m-stats">
+            {/* Reviews Δ is primary — show total only when no snapshot data */}
             <span>
               <span className="m1m-l">
-                {item.rawReviewCount !== undefined && item.reviewsDelta === 0 ? "Reviews" : "Δ Reviews"}
+                {item.reviewsDelta > 0 ? "Reviews Δ" : "Reviews"}
               </span>
               <span className="m1m-v">
-                {item.rawReviewCount !== undefined && item.reviewsDelta === 0
-                  ? item.rawReviewCount
-                  : `+${item.reviewsDelta}`}
+                {item.reviewsDelta > 0 ? `+${item.reviewsDelta}` : item.rawReviewCount}
               </span>
             </span>
+            {/* Rating Δ when moving; plain rating otherwise */}
             <span>
-              <span className="m1m-l">Rating</span>
-              <span className="m1m-v">{item.rating.toFixed(1)}</span>
+              <span className="m1m-l">
+                {item.ratingChg !== 0 ? "Rating Δ" : "Rating"}
+              </span>
+              <span className="m1m-v">
+                {item.ratingChg !== 0
+                  ? signed(item.ratingChg, { fixed: 2 })
+                  : item.rating.toFixed(1)}
+              </span>
             </span>
           </div>
           <div className="m1m-foot">
@@ -181,8 +193,12 @@ function Mover1({
 
         <div className="trend-block">
           <div className="trend-score-num">
-            <span className="label">Trend Score</span>
-            <span>{item.score}</span>
+            <span className="label" style={item.isBaselineScore ? { color: "var(--ink-4)" } : {}}>
+              {item.isBaselineScore ? "Baseline Score" : "Trend Score"}
+            </span>
+            <span style={item.isBaselineScore ? { color: "var(--ink-4)" } : {}}>
+              {item.score}
+            </span>
           </div>
           <Sparkline
             data={item.spark}
@@ -191,41 +207,61 @@ function Mover1({
             height={44}
           />
           <div className="trend-change">
-            <div
-              className={`pct ${item.scoreChg < 0 ? "down" : ""} ${arrowFor(item.scoreChg)}`}
-            >
-              {signed(item.scoreChg, { fixed: 1 })}%
-            </div>
-            <div className="since">
-              vs prev {range === "week" ? "7d" : "30d"}
-            </div>
+            {item.isBaselineScore ? (
+              <div className="since" style={{ color: "var(--ink-4)", fontStyle: "italic" }}>
+                Awaiting movement data
+              </div>
+            ) : (
+              <>
+                <div className={`pct ${item.scoreChg < 0 ? "down" : ""} ${arrowFor(item.scoreChg)}`}>
+                  {signed(item.scoreChg, { fixed: 1 })}%
+                </div>
+                <div className="since">
+                  vs prev {range === "week" ? "7d" : "30d"}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
         <div className="signals">
+          {/* Reviews Δ — primary signal */}
           <div className="signal">
-            {item.rawReviewCount !== undefined && item.reviewsDelta === 0 ? (
-              <>
-                <div className="l">Reviews</div>
-                <div className="v">{item.rawReviewCount}</div>
-                <div className="d">total</div>
-              </>
-            ) : (
+            {item.reviewsDelta > 0 ? (
               <>
                 <div className="l">Reviews Δ</div>
                 <div className="v">+{item.reviewsDelta}</div>
                 <div className="d">→ {item.reviewsVelocity.toFixed(1)}/day</div>
               </>
+            ) : (
+              <>
+                <div className="l">Reviews</div>
+                <div className="v">{item.rawReviewCount ?? "—"}</div>
+                <div className="d flat">no new</div>
+              </>
             )}
           </div>
+          {/* Rating Δ when available; muted rating otherwise */}
           <div className="signal">
-            <div className="l">Rating</div>
-            <div className="v">{item.rating.toFixed(1)}</div>
-            <div
-              className={`d ${item.ratingChg === 0 ? "flat" : ""} ${arrowFor(item.ratingChg)}`}
-            >
-              {signed(item.ratingChg, { fixed: 1 })}
-            </div>
+            {item.ratingChg !== 0 ? (
+              <>
+                <div className="l">Rating Δ</div>
+                <div className={`v ${arrowFor(item.ratingChg)}`}>
+                  {signed(item.ratingChg, { fixed: 2 })}
+                </div>
+                <div className="d" style={{ color: "var(--ink-4)" }}>
+                  {item.rating.toFixed(1)} now
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="l" style={{ color: "var(--ink-4)" }}>Rating</div>
+                <div className="v" style={{ color: "var(--ink-4)", fontSize: 14 }}>
+                  {item.rating.toFixed(1)}
+                </div>
+                <div className="d flat">—</div>
+              </>
+            )}
           </div>
           <div className="signal">
             <div className="l">Rank Δ</div>
@@ -324,8 +360,12 @@ function MoverSide({
         </div>
         <div className="md-trend">
           <div>
-            <div className="num">{item.score}</div>
-            <div className="lab">Trend Score</div>
+            <div className="num" style={item.isBaselineScore ? { color: "var(--ink-4)" } : {}}>
+              {item.score}
+            </div>
+            <div className="lab" style={item.isBaselineScore ? { color: "var(--ink-4)" } : {}}>
+              {item.isBaselineScore ? "Baseline" : "Trend Score"}
+            </div>
           </div>
           <Sparkline
             data={item.spark}
@@ -335,29 +375,46 @@ function MoverSide({
             fill={false}
             strokeWidth={1.2}
           />
-          <div
-            className={`pct ${item.scoreChg < 0 ? "down" : ""} ${arrowFor(item.scoreChg)}`}
-          >
-            {signed(item.scoreChg, { fixed: 1 })}%
-          </div>
+          {item.isBaselineScore ? (
+            <div className="pct flat" style={{ fontSize: 9, color: "var(--ink-4)" }}>
+              awaiting Δ
+            </div>
+          ) : (
+            <div className={`pct ${item.scoreChg < 0 ? "down" : ""} ${arrowFor(item.scoreChg)}`}>
+              {signed(item.scoreChg, { fixed: 1 })}%
+            </div>
+          )}
         </div>
         <div className="mini-stats">
+          {/* Reviews Δ primary */}
           <span className="it">
-            {item.rawReviewCount !== undefined && item.reviewsDelta === 0 ? (
-              <>
-                <span className="l">Reviews</span>
-                <span className="v">{item.rawReviewCount}</span>
-              </>
-            ) : (
+            {item.reviewsDelta > 0 ? (
               <>
                 <span className="l">Reviews Δ</span>
                 <span className="v">+{item.reviewsDelta}</span>
               </>
+            ) : (
+              <>
+                <span className="l">Reviews</span>
+                <span className="v" style={{ color: "var(--ink-4)" }}>{item.rawReviewCount}</span>
+              </>
             )}
           </span>
+          {/* Rating Δ when available */}
           <span className="it">
-            <span className="l">Rating</span>
-            <span className="v">{item.rating.toFixed(1)}</span>
+            {item.ratingChg !== 0 ? (
+              <>
+                <span className="l">Rating Δ</span>
+                <span className={`v ${arrowFor(item.ratingChg)}`}>
+                  {signed(item.ratingChg, { fixed: 2 })}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="l" style={{ color: "var(--ink-4)" }}>Rating</span>
+                <span className="v" style={{ color: "var(--ink-4)" }}>{item.rating.toFixed(1)}</span>
+              </>
+            )}
           </span>
         </div>
         <div className="mover-foot">

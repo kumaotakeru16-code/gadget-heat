@@ -5,17 +5,16 @@
 // 表示: 600×337.5px (50%スケール)
 // 保存: pixelRatio:2 → 1200×675px PNG
 //
-// 注意: 楽天CDN画像のCORSポリシーにより、PNG保存時に商品画像が
-//       空白になる場合があります。その場合はスクリーンショットを
-//       ご利用ください。
+// 楽天CDN画像は /api/image-proxy 経由で同一originに変換済み。
+// crossOrigin="anonymous" と cacheBust:true も併用。
 //
 // 将来の拡張:
-//   - 画像プロキシAPI経由で確実にCORSを通す
 //   - note記事用 1200×630 縦長カード
 //   - カード背景テーマ切り替え
 
 import { useRef, useState } from "react";
 import type { SocialCandidate } from "./types";
+import { toProxiedImageUrl } from "@/lib/image-proxy";
 
 interface Props {
   candidate: SocialCandidate;
@@ -45,8 +44,9 @@ export default function CardPreview({ candidate }: Props) {
     }
   }
 
-  const p     = candidate.product;
-  const score = p.score ?? 0;
+  const p          = candidate.product;
+  const score      = p.score ?? 0;
+  const proxiedImg = toProxiedImageUrl(p.imageUrl);
 
   // 600×337.5 で表示 / 2x キャプチャで 1200×675 に
   const W = 600;
@@ -94,9 +94,9 @@ export default function CardPreview({ candidate }: Props) {
             background:      "oklch(0.965 0.012 78)",
             borderRight:     "1px solid oklch(0.90 0.010 65)",
           }}>
-            {p.imageUrl ? (
+            {proxiedImg ? (
               <img
-                src={p.imageUrl}
+                src={proxiedImg}
                 alt={p.name}
                 crossOrigin="anonymous"
                 style={{
@@ -104,18 +104,30 @@ export default function CardPreview({ candidate }: Props) {
                   objectFit: "contain",
                   borderRadius: 8,
                 }}
+                onError={(e) => {
+                  // Fallback to gradient placeholder if proxy fetch fails
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                  const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
+                  if (fb) fb.style.display = "flex";
+                }}
               />
-            ) : (
-              <div style={{
-                width: 156, height: 156,
-                background: "oklch(0.90 0.010 65)",
-                borderRadius: 8,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 48,
-              }}>
-                📦
-              </div>
-            )}
+            ) : null}
+            <div style={{
+              width: 156, height: 156,
+              background: "linear-gradient(135deg, oklch(0.90 0.010 65) 0%, oklch(0.85 0.018 78) 100%)",
+              borderRadius: 8,
+              display: proxiedImg ? "none" : "flex",
+              alignItems: "center", justifyContent: "center",
+              flexDirection: "column",
+              gap: 4,
+              color: "oklch(0.52 0.010 65)",
+              fontSize: 11,
+              textAlign: "center",
+              padding: 8,
+            }}>
+              <span style={{ fontSize: 28 }}>🛍</span>
+              <span style={{ fontSize: 9, lineHeight: 1.3 }}>{p.cat}</span>
+            </div>
           </div>
 
           {/* Right: content */}

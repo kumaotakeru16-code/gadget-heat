@@ -11,8 +11,8 @@ export default function Methodology({ locale }: MethodologyProps) {
         <h4>About Trend Score</h4>
         <p>
           {locale === "jp"
-            ? "TREND SCORE は、レビュー増加数と評価点数をもとに算出。レビューが増えていて、評価が高い製品ほど高スコア。価格変化は含まれません。"
-            : "TREND SCORE is computed from review velocity and rating quality. Higher when reviews are rising AND ratings stay strong. Price moves are excluded."}
+            ? "TREND SCORE の主軸はレビュー増加数（reviewsDelta）と評価の変化（ratingChg）。評価の現在値は信頼度補正として小さく寄与するだけです。スナップショットが揃う前日はBaselineスコアとして表示されます。"
+            : "TREND SCORE is driven by review delta and rating movement — not static rating value. Rating is a trust correction only. Before snapshots accumulate, a quality-based Baseline Score is shown."}
         </p>
         <div className="meth-formula">
           <span className="var">trend_score</span>
@@ -49,8 +49,8 @@ export default function Methodology({ locale }: MethodologyProps) {
         <h4>Coverage</h4>
         <p>
           {locale === "jp"
-            ? "対象は日常生活を豊かにする Life Gadget のみ。美容・キッチン・健康・育児・デスク・掃除・アウトドアに関係する製品を楽天シグナルで選定。"
-            : "Scope is everyday life gadgets: beauty, kitchen, health, parenting, desk, home, and outdoor. Products selected for strong Rakuten review signal — not price ranking."}
+            ? "対象は、美容家電・キッチン家電・掃除家電・防災用品・生活便利グッズなど、暮らしを少し便利にするアイテムです。価格変化はDeal Signalとして別表示し、Trend Scoreには含めません。"
+            : "Scope is everyday life items: beauty appliances, kitchen gadgets, cleaning devices, emergency goods, and daily convenience items. Price movement is shown as Deal Signal — excluded from Trend Score."}
         </p>
       </div>
     </div>

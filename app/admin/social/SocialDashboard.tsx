@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { SocialCandidate } from "./types";
 import CardPreview from "./CardPreview";
+import { toProxiedImageUrl } from "@/lib/image-proxy";
 
 // ─── Post text builder (ルールベース) ─────────────────────────────────────────
 // 将来的にはLLMに差し替えられるよう、独立した関数として切り出す
@@ -153,12 +154,15 @@ export default function SocialDashboard({ candidates, generatedAt }: Props) {
                   transition:   "background 0.1s",
                 }}
               >
-                {/* Thumbnail */}
-                {p.imageUrl ? (
+                {/* Thumbnail — proxy経由でCORS回避 */}
+                {toProxiedImageUrl(p.imageUrl) ? (
                   <img
-                    src={p.imageUrl}
+                    src={toProxiedImageUrl(p.imageUrl)!}
                     alt=""
                     style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 4, flexShrink: 0 }}
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                    }}
                   />
                 ) : (
                   <div style={{
@@ -166,7 +170,7 @@ export default function SocialDashboard({ candidates, generatedAt }: Props) {
                     background: "oklch(0.90 0.010 65)",
                     display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18,
                   }}>
-                    📦
+                    🛍
                   </div>
                 )}
 

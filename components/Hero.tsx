@@ -24,18 +24,18 @@ export default function Hero({
 }: HeroProps) {
   const isAll = market.id === "all";
   const eyebrowLabel = isAll
-    ? "LIFE GADGET MARKET VIEWER"
+    ? "LIFE ITEM HEAT VIEWER"
     : `${market.short}${subcat ? ` · ${subcat.toUpperCase()}` : ""}`;
 
   const titleJP = isAll ? (
     <>
       今、動いている
       <br />
-      <span className="accent">ガジェット</span>。
+      <span className="accent">生活アイテム</span>。
     </>
   ) : (
     <>
-      {market.name}市場で
+      {market.name}で
       <br />
       <span className="accent">今動いているもの</span>。
     </>
@@ -43,7 +43,7 @@ export default function Hero({
 
   const titleEN = isAll ? (
     <>
-      What the <span className="accent">market</span>
+      Life items the <span className="accent">market</span>
       <br />
       is moving on right now.
     </>
@@ -55,11 +55,11 @@ export default function Hero({
   );
 
   const subJP = isAll
-    ? "レビュー増加数と評価点数から、市場の熱量が高まっている Life Gadget を可視化。価格ランキングの「現在値」ではなく、「どれに注目が集まっているか」を見るためのビューワーです。"
+    ? "レビュー増加数と評価推移から、いま注目が集まっている生活改善アイテムを可視化。価格ランキングではなく、暮らしの中で動き始めたモノを見るためのビューアーです。"
     : market.blurb;
 
   const subEN = isAll
-    ? "Trend Score combines review velocity and rating quality across Life Gadget markets. Not a price comparison — a view into what is gaining attention right now."
+    ? "Surfacing life items gaining momentum — review velocity and rating movement, not price ranking. A viewer for what is actually starting to move in daily life."
     : market.blurb;
 
   return (
@@ -81,8 +81,8 @@ export default function Hero({
               <span className="chip">
                 <span className="dot" />{" "}
                 {locale === "jp"
-                  ? "レビュー増加 × 評価点数"
-                  : "Review Δ × Rating quality"}
+                  ? "Reviews Δ × Rating変化"
+                  : "Reviews Δ × Rating movement"}
               </span>
               <span className="chip muted">
                 <span className="dot" />{" "}

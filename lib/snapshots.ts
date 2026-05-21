@@ -152,56 +152,95 @@ export async function getPreviousSnapshots(
 // ---------------------------------------------------------------------------
 
 /**
- * Trend Score formula:
- *   score = reviewsDelta * 2 + rating * 10 + (rankUp > 0 ? rankUp * 0.5 : 0)
+ * Momentum-based Trend Score.
  *
- * This is intentionally simple — reviewsDelta is the primary signal.
- * Rating acts as a quality floor.  Rank movement adds momentum.
+ * Primary axes:
+ *   reviewsDelta  — market reaction (new reviews since yesterday)
+ *   ratingChg     — direction of quality signal
+ *
+ * Secondary (trust / signal quality):
+ *   rating        — trust bonus: high-rated products get a small lift
+ *   rawReviewCount — low-signal penalty: very few reviews reduce confidence
+ *
+ * NOT a quality ranking — a product with reviewsDelta=0 and ratingChg=0
+ * scores only the small trust bonus, even if its rating is 4.9.
  */
-function computeScore(
-  reviewsDelta: number,
-  rating: number,
-  rankUp: number
+function computeMomentumScore(
+  reviewsDelta:   number,
+  ratingChg:      number,
+  rating:         number,
+  rawReviewCount: number,
 ): number {
-  return Math.round(
-    reviewsDelta * 2 + rating * 10 + (rankUp > 0 ? rankUp * 0.5 : 0)
-  );
+  const reviewMomentum = Math.max(0, reviewsDelta) * 8;
+  const ratingMomentum = Math.max(0, ratingChg) * 120;
+
+  const trustBonus =
+    rating >= 4.5 ? 8 :
+    rating >= 4.2 ? 5 :
+    rating >= 4.0 ? 2 : 0;
+
+  const lowSignalPenalty =
+    rawReviewCount < 3  ? -10 :
+    rawReviewCount < 10 ? -5  : 0;
+
+  return Math.max(0, Math.min(100, Math.round(
+    reviewMomentum + ratingMomentum + trustBonus + lowSignalPenalty
+  )));
+}
+
+/**
+ * Fallback quality score (used when no prior snapshot exists).
+ * Same formula as lib/rakuten.ts computeScore — kept in sync manually.
+ * This is the "Baseline Score" shown in the UI until movement data arrives.
+ */
+function computeBaselineScore(rating: number, reviewCount: number): number {
+  return Math.min(100, Math.round(rating * Math.log10(reviewCount + 10) * 12));
 }
 
 /**
  * Given today's live products and yesterday's snapshot map, produces a
- * merged list with delta fields populated.  Products with no prior snapshot
- * get zero deltas.
+ * merged list with delta fields populated.
+ *
+ * Two modes per product:
+ *   isBaselineScore = true  → no prior snapshot; score = quality fallback.
+ *                             UI shows "Baseline" instead of "Trend Score".
+ *   isBaselineScore = false → prior snapshot found; score = momentum formula.
+ *                             Δ-active products score significantly higher.
  */
 export function computeDeltas(
   todayProducts: Product[],
   previousMap: Map<string, SnapshotRow>
 ): Product[] {
-  return todayProducts.map((p, idx) => {
-    const key  = buildProductKey(p);
-    const prev = previousMap.get(key) ?? null;
+  return todayProducts.map((p) => {
+    const key     = buildProductKey(p);
+    const prev    = previousMap.get(key) ?? null;
+    const hasPrev = prev !== null;
 
     const todayReviews    = p.rawReviewCount ?? 0;
-    const prevReviews     = prev?.review_count ?? todayReviews;
+    const prevReviews     = hasPrev ? (prev.review_count ?? todayReviews) : todayReviews;
     const reviewsDelta    = Math.max(0, todayReviews - prevReviews);
-    const reviewsVelocity = reviewsDelta; // 1-day window → delta = velocity
+    const reviewsVelocity = reviewsDelta; // 1-day window
 
     const todayRating = p.rating ?? 0;
-    const prevRating  = prev?.rating ?? todayRating;
+    const prevRating  = hasPrev ? (prev.rating ?? todayRating) : todayRating;
     const ratingChg   = parseFloat((todayRating - prevRating).toFixed(2));
 
     const todayPrice = p.price ?? 0;
-    const prevPrice  = prev?.price ?? todayPrice;
+    const prevPrice  = hasPrev ? (prev.price ?? todayPrice) : todayPrice;
     const priceChg   = prevPrice > 0
       ? parseFloat((((todayPrice - prevPrice) / prevPrice) * 100).toFixed(1))
       : 0;
 
-    // Rank is ordinal position in todayProducts (0-based), lower = better.
-    // We don't know previous rank without more state, so we default to 0.
-    const rankUp = 0; // populated later once we have prev-day ranking
+    const rankUp = 0;
 
-    const newScore = computeScore(reviewsDelta, todayRating, rankUp);
+    // Score selection: momentum when prior data exists, baseline otherwise.
+    const isBaselineScore = !hasPrev;
+    const newScore = isBaselineScore
+      ? computeBaselineScore(todayRating, todayReviews)
+      : computeMomentumScore(reviewsDelta, ratingChg, todayRating, todayReviews);
 
+    // scoreChg: meaningful only when both snapshots use the same formula.
+    // Suppressed in the UI when isBaselineScore=true (no prior to compare to).
     const prevScore = prev?.score ?? newScore;
     const scoreChg  = parseFloat((newScore - prevScore).toFixed(1));
 
@@ -214,6 +253,7 @@ export function computeDeltas(
       ratingChg,
       priceChg,
       rankUp,
+      isBaselineScore,
     };
   });
 }
