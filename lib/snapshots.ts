@@ -114,34 +114,47 @@ export async function saveProductSnapshots(products: Product[]): Promise<{
 // ---------------------------------------------------------------------------
 
 /**
- * Returns the most-recent prior snapshot rows for the given product keys,
+ * Returns the most-recent prior snapshot rows for the given product IDs
+ * (Rakuten itemCodes — stable identifiers that never change for the same item),
  * excluding today.  Used by computeDeltas() to find "yesterday".
+ *
+ * Matching is intentionally by product_id, NOT product_key.
+ * product_key is derived from the product name, which can vary between API
+ * calls even for the same item (Rakuten often tweaks promotional suffixes).
+ * product_id (the Rakuten itemCode e.g. "shop:item123") is always stable.
  */
 export async function getPreviousSnapshots(
-  productKeys: string[],
+  productIds: string[],
   beforeDate: string  // ISO date string "YYYY-MM-DD"
 ): Promise<Map<string, SnapshotRow>> {
-  if (productKeys.length === 0) return new Map();
+  if (productIds.length === 0) return new Map();
 
   const db = getSupabase();
   if (!db) return new Map();
+
+  // Limit: we need at most one row per product (the most-recent before today).
+  // Allow up to 30 prior days per product to handle gaps in cron execution.
+  // Without an explicit limit, Supabase defaults to 1000 rows which can be
+  // exhausted after ~5 days with 200 products.
+  const rowLimit = Math.min(productIds.length * 30, 5000);
 
   const { data, error } = await db
     .from("gadget_product_snapshots")
     .select(
       "source,product_id,product_key,market,cat,name,brand,price,rating,review_count,score,image_url,item_url,captured_date"
     )
-    .in("product_key", productKeys)
+    .in("product_id", productIds)
     .lt("captured_date", beforeDate)
-    .order("captured_date", { ascending: false });
+    .order("captured_date", { ascending: false })
+    .limit(rowLimit);
 
   if (error || !data) return new Map();
 
-  // Keep only the most-recent row per product_key.
+  // Keep only the most-recent row per product_id (rows are date-DESC so first wins).
   const map = new Map<string, SnapshotRow>();
   for (const row of data) {
-    if (!map.has(row.product_key)) {
-      map.set(row.product_key, row as SnapshotRow);
+    if (!map.has(row.product_id)) {
+      map.set(row.product_id, row as SnapshotRow);
     }
   }
   return map;
@@ -209,11 +222,11 @@ function computeBaselineScore(rating: number, reviewCount: number): number {
  */
 export function computeDeltas(
   todayProducts: Product[],
-  previousMap: Map<string, SnapshotRow>
+  previousMap: Map<string, SnapshotRow>  // keyed by product_id
 ): Product[] {
   return todayProducts.map((p) => {
-    const key     = buildProductKey(p);
-    const prev    = previousMap.get(key) ?? null;
+    // Look up by stable product_id (Rakuten itemCode), not by name-based key.
+    const prev    = previousMap.get(p.id) ?? null;
     const hasPrev = prev !== null;
 
     const todayReviews    = p.rawReviewCount ?? 0;
@@ -272,8 +285,8 @@ export async function enrichWithDeltas(
   todayDate: string  // "YYYY-MM-DD"
 ): Promise<Product[]> {
   try {
-    const keys = products.map(buildProductKey);
-    const prev = await getPreviousSnapshots(keys, todayDate);
+    const ids  = products.map((p) => p.id);
+    const prev = await getPreviousSnapshots(ids, todayDate);
     return computeDeltas(products, prev);
   } catch {
     return products;

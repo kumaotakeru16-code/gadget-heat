@@ -72,8 +72,8 @@ export async function GET(req: NextRequest) {
     source:          (r.source as Product["source"]) ?? "rakuten",
   }));
 
-  const keys = todayRows.map((r) => r.product_key as string);
-  const prevMap = await getPreviousSnapshots(keys, date);
+  const ids = todayRows.map((r) => r.product_id as string);
+  const prevMap = await getPreviousSnapshots(ids, date);
   const enriched = computeDeltas(todayProducts, prevMap);
 
   return NextResponse.json({
