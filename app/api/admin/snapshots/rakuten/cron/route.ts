@@ -24,13 +24,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "No products fetched" }, { status: 502 });
   }
 
-  const { saved, errors } = await saveProductSnapshots(result.products);
+  const { saved, alreadyExisted, errors, dbCountForToday } = await saveProductSnapshots(result.products);
 
   return NextResponse.json({
-    ok:    errors.length === 0,
+    ok:             errors.length === 0,
     saved,
-    total: result.products.length,
+    alreadyExisted,
+    total:          result.products.length,
+    dbCountForToday,
     errors,
-    date:  new Date().toISOString().slice(0, 10),
+    date:           new Date().toISOString().slice(0, 10),
   });
 }

@@ -76,37 +76,59 @@ function toRow(p: Product): SnapshotRow {
  * Upsert a batch of products as today's snapshot.
  * Duplicate saves within the same calendar day are silently ignored
  * (ON CONFLICT DO NOTHING via the daily unique index).
+ *
+ * NOTE on count reporting:
+ *   ignoreDuplicates:true uses ON CONFLICT DO NOTHING, which causes PostgREST
+ *   to return count=0 even for rows that WERE actually inserted — not just
+ *   conflicted rows.  We therefore verify the actual row count with a SELECT
+ *   after all batches finish, rather than trusting the upsert count.
  */
 export async function saveProductSnapshots(products: Product[]): Promise<{
   saved: number;
+  alreadyExisted: number;
   errors: string[];
+  dbCountForToday: number | null;
 }> {
   const db = getSupabase();
-  if (!db) return { saved: 0, errors: ["Supabase not configured"] };
+  if (!db) return { saved: 0, alreadyExisted: 0, errors: ["Supabase not configured"], dbCountForToday: null };
 
-  const rows = products.map(toRow);
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Count rows already in the DB for today BEFORE the upsert.
+  const { count: beforeCount } = await db
+    .from("gadget_product_snapshots")
+    .select("*", { count: "exact", head: true })
+    .eq("captured_date", today);
+
+  const rows  = products.map(toRow);
   const errors: string[] = [];
-  let saved = 0;
 
-  // Batch in groups of 100 to stay within Supabase payload limits.
   const BATCH = 100;
   for (let i = 0; i < rows.length; i += BATCH) {
     const batch = rows.slice(i, i + BATCH);
-    const { error, count } = await db
+    const { error } = await db
       .from("gadget_product_snapshots")
       .upsert(batch, {
         onConflict: "source,product_id,captured_date",
         ignoreDuplicates: true,
-        count: "exact",
       });
     if (error) {
       errors.push(error.message);
-    } else {
-      saved += count ?? batch.length;
     }
   }
 
-  return { saved, errors };
+  // Count rows now in the DB for today AFTER all batches.
+  const { count: afterCount } = await db
+    .from("gadget_product_snapshots")
+    .select("*", { count: "exact", head: true })
+    .eq("captured_date", today);
+
+  const before         = beforeCount ?? 0;
+  const after          = afterCount  ?? 0;
+  const saved          = Math.max(0, after - before);
+  const alreadyExisted = before;
+
+  return { saved, alreadyExisted, errors, dbCountForToday: after };
 }
 
 // ---------------------------------------------------------------------------
